@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, Zap, AlertTriangle, CheckCircle, RotateCcw, Loader2, Shield } from 'lucide-react';
-import { useStore } from '../store/useStore';
-import { plasticClassifier } from '../lib/advancedML';
-import { fraudDetector } from '../lib/advancedFraudDetection';
+import { useStore } from '@/store/useStore';
+import { plasticClassifier } from '@/utils/advancedML';
+import { fraudDetector } from '@/utils/advancedFraudDetection';
 
 type PlasticType = 'PET' | 'HDPE' | 'PVC' | 'LDPE' | 'PP' | 'PS' | 'OTHER';
 
