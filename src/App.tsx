@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { useStore } from '@/store/useStore';
 import { Auth } from '@/components/Auth';
 import { Home } from '@/components/Home';
@@ -40,6 +41,7 @@ export function App() {
     <div className="min-h-screen bg-black">
       {renderContent()}
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <Analytics />
     </div>
   );
 }
