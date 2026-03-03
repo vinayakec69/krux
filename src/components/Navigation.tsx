@@ -50,7 +50,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
               )}
               <span className={cn(
                 'text-xs font-medium transition-colors duration-300',
-                isScan ? 'text-gray-600' : isActive ? 'text-green-500' : 'text-gray-400'
+                isScan ? 'text-gray-500' : isActive ? 'text-green-500' : 'text-gray-400'
               )}>
                 {tab.label}
               </span>
