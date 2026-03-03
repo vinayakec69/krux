@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Camera, ShoppingBag, Trophy, BarChart2,
-  Zap, Flame, ChevronRight, LogOut,
-  Snowflake, AlertTriangle, Star,
+  Zap, Flame, ChevronRight,
+  Snowflake, AlertTriangle, Star, Leaf,
 } from 'lucide-react';
 import { useStore, XP_PER_LEVEL, LEVEL_NAMES, ALL_BADGES } from '@/store/useStore';
 import { CoinBalanceSkeleton } from '@/components/SkeletonLoader';
@@ -10,6 +10,7 @@ import { Badges } from '@/components/Badges';
 import { Challenges } from '@/components/Challenges';
 import { SpinWheel } from '@/components/SpinWheel';
 import { Referral } from '@/components/Referral';
+import { Sidebar } from '@/components/Sidebar';
 
 interface HomeProps {
   onNavigate: (tab: string) => void;
@@ -17,12 +18,14 @@ interface HomeProps {
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const {
-    user, showRewardAnimation, logout, leaderboard,
+    user, showRewardAnimation, leaderboard,
     buyStreakFreeze, levelUpTo, dismissLevelUp,
   } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [coinAnimating, setCoinAnimating] = useState(false);
   const [freezeBought, setFreezeBought] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [spinModalOpen, setSpinModalOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 800);
@@ -65,6 +68,28 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      {/* Sidebar */}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNavigate={onNavigate} />
+
+      {/* Spin Wheel Modal */}
+      {spinModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-gray-900/60" onClick={() => setSpinModalOpen(false)} />
+          <div className="relative w-full bg-white rounded-t-3xl p-6 pb-10 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-gray-900 font-bold text-xl">🎡 Daily Spin</h2>
+              <button
+                onClick={() => setSpinModalOpen(false)}
+                className="p-2 bg-gray-100 rounded-xl text-gray-500 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <SpinWheel />
+          </div>
+        </div>
+      )}
+
       {/* Level-up celebration overlay */}
       {levelUpTo !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
@@ -87,17 +112,21 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="bg-white border-b border-gray-200 px-4 pt-6 pb-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl">
-              {user?.avatar || '🌱'}
-            </div>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 bg-green-100 rounded-xl border border-green-200 hover:bg-green-200 transition-colors duration-200"
+              aria-label="Open menu"
+            >
+              <Leaf className="w-5 h-5 text-green-600" />
+            </button>
             <div>
               <p className="text-gray-500 text-sm">Welcome back,</p>
               <h2 className="text-gray-900 font-bold text-lg">{user?.name || 'Eco Hero'}</h2>
             </div>
           </div>
-          <button onClick={logout} className="p-2 bg-gray-100 rounded-xl border border-gray-200">
-            <LogOut className="w-5 h-5 text-gray-400" />
-          </button>
+          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl">
+            {user?.avatar || '🌱'}
+          </div>
         </div>
 
         {/* ── Balance card ── */}
@@ -205,11 +234,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* ── Spin Wheel card ── */}
-      <div className="px-4 mb-6">
-        <SpinWheel />
-      </div>
-
       {/* ── Challenges card ── */}
       <div className="px-4 mb-6">
         <Challenges />
@@ -291,6 +315,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="px-4 mb-8">
         <Referral />
       </div>
+
+      {/* ── Floating Spin FAB ── */}
+      <button
+        onClick={() => setSpinModalOpen(true)}
+        className="fixed bottom-24 right-4 z-30 w-14 h-14 bg-green-500 text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-green-600 transition-all duration-300 pop-out-btn"
+        aria-label="Daily Spin"
+        title="Daily Spin"
+      >
+        🎰
+      </button>
     </div>
   );
 };

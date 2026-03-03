@@ -9,7 +9,7 @@ import { Dashboard } from '@/components/Dashboard';
 import { Navigation } from '@/components/Navigation';
 
 export function App() {
-  const { isAuthenticated, activeTab, setActiveTab, initializeApp } = useStore();
+  const { isAuthenticated, activeTab, setActiveTab, initializeApp, darkMode } = useStore();
 
   useEffect(() => {
     initializeApp();
@@ -37,7 +37,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen bg-gray-50 transition-colors duration-300 ${darkMode ? 'dark' : ''}`}>
       {renderContent()}
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>

@@ -157,6 +157,22 @@ export const Marketplace: React.FC = () => {
         )}
       </div>
 
+      {/* Sticky Checkout Button — visible when cart has items */}
+      {cart.length > 0 && !showCart && (
+        <div className="fixed bottom-20 left-0 right-0 px-4 z-30">
+          <button
+            onClick={() => setShowCart(true)}
+            className="w-full py-4 bg-green-500 text-white font-bold text-lg rounded-xl shadow-lg flex items-center justify-center gap-3 pop-out-btn"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            Proceed to Checkout
+            <span className="bg-white text-green-600 text-sm font-bold px-2 py-0.5 rounded-full">
+              {cartItemsCount}
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Cart Drawer */}
       {showCart && (
         <div className="fixed inset-0 z-50">
