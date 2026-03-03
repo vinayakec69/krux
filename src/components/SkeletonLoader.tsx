@@ -22,7 +22,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className, variant = 'rectan
 };
 
 export const CoinBalanceSkeleton: React.FC = () => (
-  <div className="flex items-center gap-3 p-4 bg-[#111] rounded-2xl border border-gray-800">
+  <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
     <Skeleton variant="circular" className="w-12 h-12" />
     <div className="flex-1">
       <Skeleton className="h-3 w-20 mb-2" />
@@ -32,7 +32,7 @@ export const CoinBalanceSkeleton: React.FC = () => (
 );
 
 export const ProductCardSkeleton: React.FC = () => (
-  <div className="bg-[#111] rounded-2xl border border-gray-800 overflow-hidden">
+  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
     <Skeleton className="h-40 w-full rounded-none" />
     <div className="p-4">
       <Skeleton className="h-5 w-3/4 mb-2" />
@@ -49,7 +49,7 @@ export const ProductCardSkeleton: React.FC = () => (
 export const LeaderboardSkeleton: React.FC = () => (
   <div className="space-y-3">
     {[1, 2, 3, 4, 5].map((i) => (
-      <div key={i} className="flex items-center gap-4 p-4 bg-[#111] rounded-xl border border-gray-800">
+      <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
         <Skeleton className="h-8 w-8 rounded-full" />
         <Skeleton variant="circular" className="w-12 h-12" />
         <div className="flex-1">
@@ -65,7 +65,7 @@ export const LeaderboardSkeleton: React.FC = () => (
 export const DashboardSkeleton: React.FC = () => (
   <div className="grid grid-cols-2 gap-4">
     {[1, 2, 3, 4].map((i) => (
-      <div key={i} className="bg-[#111] rounded-2xl border border-gray-800 p-4">
+      <div key={i} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
         <Skeleton variant="circular" className="w-10 h-10 mb-3" />
         <Skeleton className="h-6 w-16 mb-1" />
         <Skeleton className="h-3 w-24" />

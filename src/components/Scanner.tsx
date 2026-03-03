@@ -237,11 +237,11 @@ export function Scanner() {
   };
   
   return (
-    <div className="min-h-screen bg-black text-white pb-24">
+    <div className="min-h-screen bg-gray-50 text-gray-900 pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black/90 backdrop-blur-sm border-b border-gray-800 p-4">
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-emerald-400">Scan Plastic</h1>
+          <h1 className="text-xl font-bold text-gray-900">Scan Plastic</h1>
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Shield className="w-4 h-4" />
             <span>{fraudDetector.getHistoryCount()} scans tracked</span>
@@ -255,7 +255,7 @@ export function Scanner() {
       {/* Main Content */}
       <div className="p-4">
         {/* Camera View */}
-        <div className="relative aspect-[3/4] bg-gray-900 rounded-2xl overflow-hidden mb-4">
+        <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden mb-4 border border-gray-200">
           {/* Video element - always rendered but hidden when not streaming */}
           <video
             ref={videoRef}
@@ -279,20 +279,20 @@ export function Scanner() {
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
               <div
                 onClick={startCamera}
-                className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center cursor-pointer hover:bg-emerald-400 transition-all hover:scale-105 shadow-lg shadow-emerald-500/30"
+                className="w-24 h-24 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:bg-green-600 transition-all hover:scale-105 shadow-md shadow-green-200"
               >
-                <Camera className="w-10 h-10 text-black" />
+                <Camera className="w-10 h-10 text-white" />
               </div>
-              <p className="mt-6 text-gray-400 text-lg">Tap to Open Camera</p>
-              <p className="mt-2 text-gray-500 text-sm">Point at plastic waste to earn KRUX</p>
+              <p className="mt-6 text-gray-600 text-lg">Tap to Open Camera</p>
+              <p className="mt-2 text-gray-400 text-sm">Point at plastic waste to earn KRUX</p>
             </div>
           )}
           
           {/* Requesting Permission */}
           {scanState === 'requesting' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <Loader2 className="w-12 h-12 text-emerald-400 animate-spin" />
-              <p className="mt-4 text-gray-400">Requesting camera access...</p>
+              <Loader2 className="w-12 h-12 text-green-500 animate-spin" />
+              <p className="mt-4 text-gray-500">Requesting camera access...</p>
             </div>
           )}
           
@@ -301,16 +301,16 @@ export function Scanner() {
             <>
               {/* Scanning frame */}
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-8 border-2 border-emerald-400/50 rounded-lg">
+                <div className="absolute inset-8 border-2 border-green-500/70 rounded-lg">
                   {/* Corner accents */}
-                  <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg" />
-                  <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg" />
-                  <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg" />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-lg" />
+                  <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-4 border-l-4 border-green-500 rounded-tl-lg" />
+                  <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-4 border-r-4 border-green-500 rounded-tr-lg" />
+                  <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-4 border-l-4 border-green-500 rounded-bl-lg" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-4 border-r-4 border-green-500 rounded-br-lg" />
                 </div>
                 
                 {/* Animated scan line */}
-                <div className="absolute left-8 right-8 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse"
+                <div className="absolute left-8 right-8 h-0.5 bg-gradient-to-r from-transparent via-green-500 to-transparent animate-pulse"
                      style={{ top: '50%', animation: 'scan 2s ease-in-out infinite' }} />
               </div>
               
@@ -318,7 +318,7 @@ export function Scanner() {
               <div className="absolute bottom-6 left-0 right-0 flex justify-center">
                 <button
                   onClick={captureImage}
-                  className="flex items-center gap-2 px-8 py-4 bg-emerald-500 text-black font-bold rounded-full shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-all"
+                  className="flex items-center gap-2 px-8 py-4 bg-green-500 text-white font-bold rounded-full shadow-md shadow-green-200 hover:bg-green-600 transition-all duration-300"
                 >
                   <Camera className="w-5 h-5" />
                   CAPTURE & ANALYZE
@@ -327,7 +327,7 @@ export function Scanner() {
               
               {/* Hint */}
               <div className="absolute top-6 left-0 right-0 text-center">
-                <p className="text-emerald-400 text-sm bg-black/60 inline-block px-4 py-2 rounded-full">
+                <p className="text-white text-sm bg-green-500/80 inline-block px-4 py-2 rounded-full">
                   Position plastic inside the frame
                 </p>
               </div>
@@ -336,22 +336,22 @@ export function Scanner() {
           
           {/* Processing */}
           {scanState === 'processing' && (
-            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6">
+            <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-6">
               <div className="w-full max-w-xs">
                 <div className="flex items-center gap-3 mb-4">
-                  <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
-                  <span className="text-emerald-400 font-medium">Analyzing plastic...</span>
+                  <Loader2 className="w-6 h-6 text-green-500 animate-spin" />
+                  <span className="text-green-700 font-medium">Analyzing plastic...</span>
                 </div>
                 
                 {/* Progress bar with non-linear animation */}
-                <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-3 bg-green-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300 ease-out"
+                    className="h-full bg-green-500 transition-all duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
                 
-                <p className="text-gray-400 text-sm mt-3 text-center">
+                <p className="text-gray-500 text-sm mt-3 text-center">
                   {progress < 30 && 'Extracting image features...'}
                   {progress >= 30 && progress < 60 && 'Running ML classification...'}
                   {progress >= 60 && progress < 85 && 'Checking for fraud...'}
@@ -363,16 +363,16 @@ export function Scanner() {
           
           {/* Fraud Detected */}
           {scanState === 'fraud' && fraudResult && (
-            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+            <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4">
                 <AlertTriangle className="w-10 h-10 text-red-500" />
               </div>
               
               <h2 className="text-2xl font-bold text-red-500 mb-2">Duplicate Detected!</h2>
-              <p className="text-gray-400 mb-4">{fraudResult.reason}</p>
+              <p className="text-gray-500 mb-4">{fraudResult.reason}</p>
               
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 max-w-sm">
-                <p className="text-red-400 text-sm">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 max-w-sm">
+                <p className="text-red-500 text-sm">
                   Our fraud detection system ({fraudResult.confidence}% match) has identified this item as previously scanned.
                   Please scan a different plastic item.
                 </p>
@@ -380,7 +380,7 @@ export function Scanner() {
               
               <button
                 onClick={retryCamera}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-all"
+                className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-300"
               >
                 <RotateCcw className="w-5 h-5" />
                 Try Another Item
@@ -392,10 +392,10 @@ export function Scanner() {
           {error && scanState === 'idle' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
               <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-              <p className="text-red-400 mb-4">{error}</p>
+              <p className="text-red-500 mb-4">{error}</p>
               <button
                 onClick={startCamera}
-                className="px-6 py-3 bg-emerald-500 text-black font-bold rounded-full"
+                className="px-6 py-3 bg-green-500 text-white font-bold rounded-full"
               >
                 Try Again
               </button>
@@ -407,37 +407,37 @@ export function Scanner() {
         {scanState === 'result' && scanResult && (
           <div className="space-y-4 animate-fade-in">
             {/* Success Card */}
-            <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 rounded-2xl p-6">
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-emerald-400" />
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-emerald-400">Plastic Identified!</h3>
-                  <p className="text-gray-400 text-sm">{scanResult.confidence}% confidence</p>
+                  <h3 className="text-lg font-bold text-green-700">Plastic Identified!</h3>
+                  <p className="text-gray-500 text-sm">{scanResult.confidence}% confidence</p>
                 </div>
               </div>
               
-              <div className="bg-black/40 rounded-xl p-4 mb-4">
+              <div className="bg-white rounded-xl p-4 mb-4 border border-gray-200">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-4 h-4 rounded-full"
                     style={{ backgroundColor: PLASTIC_INFO[scanResult.type].color }}
                   />
                   <div>
-                    <p className="font-bold text-white">{PLASTIC_INFO[scanResult.type].name}</p>
-                    <p className="text-gray-400 text-sm">{PLASTIC_INFO[scanResult.type].examples}</p>
+                    <p className="font-bold text-gray-900">{PLASTIC_INFO[scanResult.type].name}</p>
+                    <p className="text-gray-500 text-sm">{PLASTIC_INFO[scanResult.type].examples}</p>
                   </div>
                 </div>
               </div>
               
               {/* Coins Earned */}
-              <div className="flex items-center justify-between p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-white border border-green-200 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <Zap className="w-8 h-8 text-yellow-400" />
+                  <Zap className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="text-yellow-400 font-bold text-2xl">+{scanResult.coins}</p>
-                    <p className="text-yellow-400/70 text-sm">KRUX earned!</p>
+                    <p className="text-green-600 font-bold text-2xl">+{scanResult.coins}</p>
+                    <p className="text-gray-500 text-sm">KRUX earned!</p>
                   </div>
                 </div>
                 <div className="text-right text-gray-400 text-sm">
@@ -448,8 +448,8 @@ export function Scanner() {
             </div>
             
             {/* ML Classification Breakdown */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-              <h4 className="text-lg font-bold text-white mb-4">Classification Scores</h4>
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <h4 className="text-lg font-bold text-gray-900 mb-4">Classification Scores</h4>
               <div className="space-y-3">
                 {Object.entries(allScores)
                   .sort((a, b) => b[1] - a[1])
@@ -457,19 +457,19 @@ export function Scanner() {
                     <div key={type} className="flex items-center gap-3">
                       <div
                         className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: PLASTIC_INFO[type as PlasticType]?.color || '#666' }}
+                        style={{ backgroundColor: PLASTIC_INFO[type as PlasticType]?.color || '#9CA3AF' }}
                       />
-                      <span className="text-gray-400 w-16 text-sm">{type}</span>
-                      <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <span className="text-gray-500 w-16 text-sm">{type}</span>
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full"
                           style={{
                             width: `${score * 100}%`,
-                            backgroundColor: PLASTIC_INFO[type as PlasticType]?.color || '#666'
+                            backgroundColor: PLASTIC_INFO[type as PlasticType]?.color || '#9CA3AF'
                           }}
                         />
                       </div>
-                      <span className="text-gray-500 text-sm w-12 text-right">
+                      <span className="text-gray-400 text-sm w-12 text-right">
                         {(score * 100).toFixed(1)}%
                       </span>
                     </div>
@@ -480,7 +480,7 @@ export function Scanner() {
             {/* Scan Another Button */}
             <button
               onClick={retryCamera}
-              className="w-full py-4 bg-emerald-500 text-black font-bold rounded-xl hover:bg-emerald-400 transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
             >
               <Camera className="w-5 h-5" />
               Scan Another Item
@@ -491,52 +491,52 @@ export function Scanner() {
         {/* Info Section */}
         {scanState === 'idle' && (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white">How It Works</h3>
+            <h3 className="text-lg font-bold text-gray-900">How It Works</h3>
             
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-2">
-                  <Camera className="w-5 h-5 text-emerald-400" />
+              <div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                  <Camera className="w-5 h-5 text-green-600" />
                 </div>
-                <p className="text-gray-400 text-xs">Point camera at plastic</p>
+                <p className="text-gray-500 text-xs">Point camera at plastic</p>
               </div>
               
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-2">
-                  <Zap className="w-5 h-5 text-purple-400" />
+              <div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                  <Zap className="w-5 h-5 text-green-600" />
                 </div>
-                <p className="text-gray-400 text-xs">ML identifies type</p>
+                <p className="text-gray-500 text-xs">ML identifies type</p>
               </div>
               
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-                <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-yellow-400 font-bold">K</span>
+              <div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                  <span className="text-green-600 font-bold">K</span>
                 </div>
-                <p className="text-gray-400 text-xs">Earn KRUX coins</p>
+                <p className="text-gray-500 text-xs">Earn KRUX coins</p>
               </div>
             </div>
             
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-              <h4 className="font-bold text-white mb-3">KRUX Rewards by Plastic Type</h4>
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+              <h4 className="font-bold text-gray-900 mb-3">KRUX Rewards by Plastic Type</h4>
               <div className="space-y-2">
                 {Object.entries(PLASTIC_INFO).map(([type, info]) => (
                   <div key={type} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: info.color }} />
-                      <span className="text-gray-400 text-sm">{type}</span>
+                      <span className="text-gray-500 text-sm">{type}</span>
                     </div>
-                    <span className="text-yellow-400 font-medium">{info.coins} KRUX</span>
+                    <span className="text-green-600 font-medium">{info.coins} KRUX</span>
                   </div>
                 ))}
               </div>
             </div>
             
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <Shield className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-red-400 mb-1">Fraud Protection Active</h4>
-                  <p className="text-gray-400 text-sm">
+                  <h4 className="font-bold text-red-600 mb-1">Fraud Protection Active</h4>
+                  <p className="text-gray-500 text-sm">
                     Our advanced system uses image fingerprinting, GPS, and device tracking to prevent duplicate scans.
                     Each plastic item can only be scanned once.
                   </p>

@@ -37,10 +37,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   }, [showRewardAnimation]);
 
   const quickActions = [
-    { id: 'scan',        icon: <Camera className="w-6 h-6" />,      label: 'Scan',  color: 'from-green-500 to-emerald-600' },
-    { id: 'shop',        icon: <ShoppingBag className="w-6 h-6" />, label: 'Shop',  color: 'from-purple-500 to-pink-600' },
-    { id: 'leaderboard', icon: <Trophy className="w-6 h-6" />,      label: 'Ranks', color: 'from-yellow-500 to-orange-600' },
-    { id: 'dashboard',   icon: <BarChart2 className="w-6 h-6" />,   label: 'Stats', color: 'from-blue-500 to-cyan-600' },
+    { id: 'scan',        icon: <Camera className="w-6 h-6" />,      label: 'Scan',  color: 'bg-green-500' },
+    { id: 'shop',        icon: <ShoppingBag className="w-6 h-6" />, label: 'Shop',  color: 'bg-green-600' },
+    { id: 'leaderboard', icon: <Trophy className="w-6 h-6" />,      label: 'Ranks', color: 'bg-green-700' },
+    { id: 'dashboard',   icon: <BarChart2 className="w-6 h-6" />,   label: 'Stats', color: 'bg-green-800' },
   ];
 
   // XP / level helpers
@@ -64,18 +64,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black pb-24">
+    <div className="min-h-screen bg-gray-50 pb-24">
       {/* Level-up celebration overlay */}
       {levelUpTo !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="level-up bg-gradient-to-br from-[#39FF14]/20 to-[#BF00FF]/20 border border-[#39FF14]/50 rounded-3xl p-8 text-center mx-6 shadow-2xl">
+          <div className="level-up bg-white border border-green-200 rounded-3xl p-8 text-center mx-6 shadow-xl">
             <div className="text-6xl mb-3">⬆️</div>
-            <p className="text-[#39FF14] font-bold text-2xl">Level Up!</p>
-            <p className="text-white font-bold text-xl">Level {levelUpTo}</p>
-            <p className="text-gray-400">{LEVEL_NAMES[(levelUpTo ?? 1) - 1]}</p>
+            <p className="text-green-600 font-bold text-2xl">Level Up!</p>
+            <p className="text-gray-900 font-bold text-xl">Level {levelUpTo}</p>
+            <p className="text-gray-500">{LEVEL_NAMES[(levelUpTo ?? 1) - 1]}</p>
             <button
               onClick={dismissLevelUp}
-              className="mt-4 px-6 py-2 bg-[#39FF14] text-black font-bold rounded-xl pointer-events-auto"
+              className="mt-4 px-6 py-2 bg-green-500 text-white font-bold rounded-xl pointer-events-auto"
             >
               Awesome!
             </button>
@@ -84,18 +84,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       )}
 
       {/* ── Header ── */}
-      <div className="bg-gradient-to-b from-green-900/30 to-black px-4 pt-6 pb-8">
+      <div className="bg-white border-b border-gray-200 px-4 pt-6 pb-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-600 rounded-xl flex items-center justify-center text-2xl">
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl">
               {user?.avatar || '🌱'}
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Welcome back,</p>
-              <h2 className="text-white font-bold text-lg">{user?.name || 'Eco Hero'}</h2>
+              <p className="text-gray-500 text-sm">Welcome back,</p>
+              <h2 className="text-gray-900 font-bold text-lg">{user?.name || 'Eco Hero'}</h2>
             </div>
           </div>
-          <button onClick={logout} className="p-2 bg-[#111] rounded-xl border border-gray-800">
+          <button onClick={logout} className="p-2 bg-gray-100 rounded-xl border border-gray-200">
             <LogOut className="w-5 h-5 text-gray-400" />
           </button>
         </div>
@@ -104,27 +104,27 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         {isLoading ? (
           <CoinBalanceSkeleton />
         ) : (
-          <div className={`bg-gradient-to-r from-green-500/20 to-emerald-600/20 rounded-3xl p-6 border border-green-500/30 relative overflow-hidden ${coinAnimating ? 'coin-pulse' : ''}`}>
+          <div className={`bg-green-500 rounded-3xl p-6 relative overflow-hidden ${coinAnimating ? 'coin-pulse' : ''}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm mb-1">Your KRUX Balance</p>
+                <p className="text-green-100 text-sm mb-1">Your KRUX Balance</p>
                 <div className="flex items-baseline gap-2">
-                  <Zap className="w-8 h-8 text-green-400" />
-                  <span className={`text-5xl font-bold text-white ${coinAnimating ? 'text-green-400' : ''}`}>
+                  <Zap className="w-8 h-8 text-white" />
+                  <span className="text-5xl font-bold text-white">
                     {user?.kruxBalance || 0}
                   </span>
                 </div>
               </div>
               <div className="text-right">
-                <div className="flex items-center gap-1 text-orange-400 mb-1">
+                <div className="flex items-center gap-1 text-green-100 mb-1">
                   <Flame className="w-4 h-4" />
                   <span className="font-bold">{user?.streak || 0} day</span>
                 </div>
-                <p className="text-gray-500 text-xs">streak</p>
+                <p className="text-green-200 text-xs">streak</p>
                 {(user?.streakFreezes ?? 0) > 0 && (
                   <div className="flex items-center justify-end gap-1 mt-1">
                     {Array.from({ length: user?.streakFreezes ?? 0 }).map((_, i) => (
-                      <Snowflake key={i} className="w-3 h-3 text-cyan-400" />
+                      <Snowflake key={i} className="w-3 h-3 text-green-200" />
                     ))}
                   </div>
                 )}
@@ -133,7 +133,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
             {showRewardAnimation && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="reward-burst bg-green-400/30 rounded-full w-32 h-32" />
+                <div className="reward-burst bg-white/20 rounded-full w-32 h-32" />
               </div>
             )}
           </div>
@@ -141,18 +141,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       </div>
 
       {/* ── Level / XP bar ── */}
-      <div className="px-4 -mt-4 mb-6">
-        <div className="bg-[#111] rounded-2xl border border-gray-800 p-4">
+      <div className="px-4 mt-4 mb-6">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-yellow-400" />
-              <span className="text-white font-bold text-sm">Lv.{level} {levelName}</span>
+              <Star className="w-4 h-4 text-green-500" />
+              <span className="text-gray-900 font-bold text-sm">Lv.{level} {levelName}</span>
             </div>
-            <span className="text-gray-500 text-xs">{xpInLevel} / {xpNeeded} XP</span>
+            <span className="text-gray-400 text-xs">{xpInLevel} / {xpNeeded} XP</span>
           </div>
-          <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+          <div className="h-3 bg-green-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-[#39FF14] to-[#BF00FF] rounded-full progress-fill transition-all duration-500"
+              className="h-full bg-green-500 rounded-full progress-fill transition-all duration-500"
               style={{ width: `${xpPct}%` }}
             />
           </div>
@@ -161,23 +161,23 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
       {/* ── Streak + Freeze ── */}
       <div className="px-4 mb-4">
-        <div className="bg-[#111] rounded-2xl border border-gray-800 p-4 flex items-center justify-between">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Flame className="w-7 h-7 text-orange-400 streak-fire" />
+            <Flame className="w-7 h-7 text-amber-500 streak-fire" />
             <div>
-              <p className="text-white font-bold">{user?.streak || 0}-Day Streak</p>
+              <p className="text-gray-900 font-bold">{user?.streak || 0}-Day Streak</p>
               <p className="text-gray-500 text-xs">Freezes: {user?.streakFreezes ?? 0}/3</p>
             </div>
           </div>
           <button
             onClick={handleBuyFreeze}
             disabled={(user?.streakFreezes ?? 0) >= 3}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
               (user?.streakFreezes ?? 0) >= 3
-                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : freezeBought
-                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-                  : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20'
+                  ? 'bg-green-100 text-green-700 border border-green-200'
+                  : 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200'
             }`}
           >
             <Snowflake className="w-4 h-4" />
@@ -189,15 +189,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* ── Streak at risk warning ── */}
       {streakAtRisk && (
         <div className="px-4 mb-4">
-          <div className="shake bg-orange-500/10 border border-orange-500/40 rounded-2xl p-4 flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-orange-400 flex-shrink-0" />
+          <div className="shake bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+            <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-orange-400 font-bold text-sm">Streak at Risk! 🔥</p>
-              <p className="text-gray-400 text-xs">Scan before midnight to keep your streak!</p>
+              <p className="text-amber-600 font-bold text-sm">Streak at Risk! 🔥</p>
+              <p className="text-gray-500 text-xs">Scan before midnight to keep your streak!</p>
             </div>
             <button
               onClick={() => onNavigate('scan')}
-              className="px-3 py-2 bg-orange-500 text-black text-xs font-bold rounded-xl"
+              className="px-3 py-2 bg-amber-500 text-white text-xs font-bold rounded-xl"
             >
               Scan Now
             </button>
@@ -219,7 +219,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="px-4 mb-8">
         <button
           onClick={() => onNavigate('scan')}
-          className="w-full pop-out-btn bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-6 rounded-2xl flex items-center justify-center gap-3 text-xl"
+          className="w-full pop-out-btn bg-green-500 hover:bg-green-600 text-white font-bold py-6 rounded-2xl flex items-center justify-center gap-3 text-xl transition-all duration-300"
         >
           <Camera className="w-8 h-8" />
           SCAN WASTE &amp; EARN
@@ -229,18 +229,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
       {/* ── Quick Actions ── */}
       <div className="px-4 mb-8">
-        <h3 className="text-gray-400 text-sm mb-3 font-medium">Quick Actions</h3>
+        <h3 className="text-gray-500 text-sm mb-3 font-medium">Quick Actions</h3>
         <div className="grid grid-cols-4 gap-3">
           {quickActions.map(action => (
             <button
               key={action.id}
               onClick={() => onNavigate(action.id)}
-              className="bg-[#111] rounded-2xl p-4 border border-gray-800 flex flex-col items-center gap-2 hover:border-gray-700 transition-all"
+              className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex flex-col items-center gap-2 hover:border-green-300 transition-all duration-300"
             >
-              <div className={`w-12 h-12 bg-gradient-to-br ${action.color} rounded-xl flex items-center justify-center text-white`}>
+              <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center text-white`}>
                 {action.icon}
               </div>
-              <span className="text-white text-xs font-medium">{action.label}</span>
+              <span className="text-gray-700 text-xs font-medium">{action.label}</span>
             </button>
           ))}
         </div>
@@ -249,8 +249,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* ── Badges horizontal scroll ── */}
       <div className="px-4 mb-8">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-gray-400 text-sm font-medium">🏅 Achievement Badges</h3>
-          <span className="text-gray-600 text-xs">{user?.badges?.length ?? 0}/{Object.keys(ALL_BADGES).length}</span>
+          <h3 className="text-gray-500 text-sm font-medium">🏅 Achievement Badges</h3>
+          <span className="text-gray-400 text-xs">{user?.badges?.length ?? 0}/{Object.keys(ALL_BADGES).length}</span>
         </div>
         <Badges />
       </div>
@@ -258,27 +258,27 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* ── Top Earners Preview ── */}
       <div className="px-4 mb-8">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-gray-400 text-sm font-medium">Top Eco Heroes</h3>
-          <button onClick={() => onNavigate('leaderboard')} className="text-green-400 text-sm flex items-center gap-1">
+          <h3 className="text-gray-500 text-sm font-medium">Top Eco Heroes</h3>
+          <button onClick={() => onNavigate('leaderboard')} className="text-green-600 text-sm flex items-center gap-1">
             View All <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-        <div className="bg-[#111] rounded-2xl border border-gray-800 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           {leaderboard.slice(0, 3).map((entry, index) => (
-            <div key={entry.id} className={`flex items-center gap-4 p-4 ${index < 2 ? 'border-b border-gray-800' : ''}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-amber-600'}`}>
+            <div key={entry.id} className={`flex items-center gap-4 p-4 ${index < 2 ? 'border-b border-gray-100' : ''}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg ${index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-100' : 'bg-amber-100'}`}>
                 {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
               </div>
-              <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-xl">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-xl">
                 {entry.avatar}
               </div>
               <div className="flex-1">
-                <p className="text-white font-medium">{entry.name}</p>
-                <p className="text-gray-500 text-xs">📍 {entry.location}</p>
+                <p className="text-gray-900 font-medium">{entry.name}</p>
+                <p className="text-gray-400 text-xs">📍 {entry.location}</p>
               </div>
               <div className="text-right">
-                <p className="text-green-400 font-bold">{entry.greenScore}</p>
-                <div className="flex items-center gap-1 text-orange-400 text-xs">
+                <p className="text-green-600 font-bold">{entry.greenScore}</p>
+                <div className="flex items-center gap-1 text-amber-500 text-xs">
                   <Flame className="w-3 h-3" /> {entry.streak}
                 </div>
               </div>
