@@ -37,7 +37,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-gray-50">
       {renderContent()}
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>

@@ -3,7 +3,7 @@ import { Zap } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 const PRIZES = [5, 10, 15, 20, 25, 30, 50, 100];
-const COLORS = ['#39FF14', '#BF00FF', '#22c55e', '#8b5cf6', '#39FF14', '#BF00FF', '#22c55e', '#8b5cf6'];
+const COLORS = ['#BBF7D0', '#4ADE80', '#22C55E', '#16A34A', '#15803D', '#166534', '#86EFAC', '#4ADE80'];
 const SEGMENTS = PRIZES.length;
 const SEGMENT_ANGLE = (2 * Math.PI) / SEGMENTS;
 
@@ -39,7 +39,7 @@ export const SpinWheel: React.FC = () => {
       ctx.closePath();
       ctx.fillStyle = COLORS[i];
       ctx.fill();
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = '#F9FAFB';
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -48,7 +48,7 @@ export const SpinWheel: React.FC = () => {
       ctx.translate(cx, cy);
       ctx.rotate(start + SEGMENT_ANGLE / 2);
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#14532D';
       ctx.font = 'bold 13px sans-serif';
       ctx.fillText(`${PRIZES[i]}`, r - 10, 5);
       ctx.restore();
@@ -57,9 +57,9 @@ export const SpinWheel: React.FC = () => {
     // Center circle
     ctx.beginPath();
     ctx.arc(cx, cy, 18, 0, 2 * Math.PI);
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#F9FAFB';
     ctx.fill();
-    ctx.strokeStyle = '#39FF14';
+    ctx.strokeStyle = '#22C55E';
     ctx.lineWidth = 3;
     ctx.stroke();
 
@@ -69,7 +69,7 @@ export const SpinWheel: React.FC = () => {
     ctx.lineTo(cx + r - 10, cy - 10);
     ctx.lineTo(cx + r - 10, cy + 10);
     ctx.closePath();
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#15803D';
     ctx.fill();
   };
 
@@ -110,10 +110,10 @@ export const SpinWheel: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#111] rounded-2xl border border-gray-800 p-4">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-white font-bold">🎡 Daily Spin</h3>
-        {alreadySpun && <span className="text-gray-500 text-xs">Come back tomorrow!</span>}
+        <h3 className="text-gray-900 font-bold">🎡 Daily Spin</h3>
+        {alreadySpun && <span className="text-gray-400 text-xs">Come back tomorrow!</span>}
       </div>
 
       <div className="flex flex-col items-center gap-4">
@@ -127,7 +127,7 @@ export const SpinWheel: React.FC = () => {
         </div>
 
         {result !== null && (
-          <div className="flex items-center gap-2 text-green-400 font-bold text-xl pop animate-bounce">
+          <div className="flex items-center gap-2 text-green-600 font-bold text-xl pop animate-bounce">
             <Zap className="w-6 h-6" />
             +{result} KRUX won!
           </div>
@@ -136,10 +136,10 @@ export const SpinWheel: React.FC = () => {
         <button
           onClick={handleSpin}
           disabled={spinning || alreadySpun}
-          className={`w-full py-3 rounded-xl font-bold text-black transition-all ${
+          className={`w-full py-3 rounded-xl font-bold transition-all duration-300 ${
             spinning || alreadySpun
-              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-              : 'bg-[#39FF14] pop-out-btn'
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-green-500 hover:bg-green-600 text-white pop-out-btn'
           }`}
         >
           {spinning ? '🌀 Spinning...' : alreadySpun ? '✅ Spun Today' : '🎰 Spin Now!'}

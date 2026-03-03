@@ -83,19 +83,19 @@ export const Marketplace: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-24">
+    <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-lg border-b border-gray-800 px-4 py-4">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">🛍️ KRUX Shop</h1>
-            <p className="text-gray-400 text-sm">Spend your KRUX on sustainable products</p>
+            <h1 className="text-2xl font-bold text-gray-900">🛍️ KRUX Shop</h1>
+            <p className="text-gray-500 text-sm">Spend your KRUX on sustainable products</p>
           </div>
           <button 
             onClick={() => setShowCart(true)}
-            className="relative p-3 bg-[#111] rounded-xl border border-gray-800"
+            className="relative p-3 bg-gray-100 rounded-xl border border-gray-200"
           >
-            <ShoppingCart className="w-6 h-6 text-white" />
+            <ShoppingCart className="w-6 h-6 text-gray-700" />
             {cartItemsCount > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-bold">
                 {cartItemsCount}
@@ -105,12 +105,12 @@ export const Marketplace: React.FC = () => {
         </div>
 
         {/* Balance Display */}
-        <div className="bg-gradient-to-r from-green-500/20 to-emerald-600/20 rounded-xl p-3 mb-4 border border-green-500/30">
+        <div className="bg-green-50 rounded-xl p-3 mb-4 border border-green-200">
           <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-sm">Your Balance</span>
+            <span className="text-gray-500 text-sm">Your Balance</span>
             <div className="flex items-center gap-1">
-              <span className="text-2xl font-bold text-green-400">{user?.kruxBalance || 0}</span>
-              <span className="text-gray-400">KRUX</span>
+              <span className="text-2xl font-bold text-green-600">{user?.kruxBalance || 0}</span>
+              <span className="text-gray-500">KRUX</span>
             </div>
           </div>
         </div>
@@ -121,10 +121,10 @@ export const Marketplace: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setFilter(cat.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all duration-300 ${
                 filter === cat.id
                   ? 'bg-green-500 text-white'
-                  : 'bg-[#111] text-gray-400 border border-gray-800'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'
               }`}
             >
               <span>{cat.icon}</span>
@@ -160,13 +160,13 @@ export const Marketplace: React.FC = () => {
       {/* Cart Drawer */}
       {showCart && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/80" onClick={() => !showCheckout && setShowCart(false)} />
-          <div className="absolute bottom-0 left-0 right-0 bg-[#111] rounded-t-3xl max-h-[85vh] overflow-hidden">
+          <div className="absolute inset-0 bg-gray-900/50" onClick={() => !showCheckout && setShowCart(false)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-hidden">
             {!showCheckout ? (
               <>
-                <div className="p-4 border-b border-gray-800">
+                <div className="p-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-white">Your Cart</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Your Cart</h2>
                     <button onClick={() => setShowCart(false)} className="text-gray-400 p-2">
                       <X className="w-6 h-6" />
                     </button>
@@ -176,8 +176,8 @@ export const Marketplace: React.FC = () => {
                 <div className="overflow-y-auto max-h-[45vh] p-4">
                   {cart.length === 0 ? (
                     <div className="text-center py-8">
-                      <ShoppingCart className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-400">Your cart is empty</p>
+                      <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500">Your cart is empty</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -185,31 +185,31 @@ export const Marketplace: React.FC = () => {
                         const product = products.find(p => p.id === item.productId);
                         if (!product) return null;
                         return (
-                          <div key={item.productId} className="flex items-center gap-4 bg-black/50 rounded-xl p-3">
-                            <div className="w-16 h-16 bg-gray-800 rounded-xl flex items-center justify-center text-3xl">
+                          <div key={item.productId} className="flex items-center gap-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                            <div className="w-16 h-16 bg-green-50 rounded-xl flex items-center justify-center text-3xl">
                               {product.image}
                             </div>
                             <div className="flex-1">
-                              <h3 className="text-white font-medium text-sm line-clamp-1">{product.name}</h3>
-                              <p className="text-green-400 font-bold">{product.price} KRUX</p>
+                              <h3 className="text-gray-900 font-medium text-sm line-clamp-1">{product.name}</h3>
+                              <p className="text-green-600 font-bold">{product.price} KRUX</p>
                             </div>
                             <div className="flex items-center gap-2">
                               <button 
                                 onClick={() => updateCartQuantity(product.id, item.quantity - 1)}
-                                className="p-1 bg-gray-800 rounded-lg"
+                                className="p-1 bg-gray-100 rounded-lg"
                               >
-                                <Minus className="w-4 h-4 text-gray-400" />
+                                <Minus className="w-4 h-4 text-gray-500" />
                               </button>
-                              <span className="text-white w-6 text-center">{item.quantity}</span>
+                              <span className="text-gray-900 w-6 text-center">{item.quantity}</span>
                               <button 
                                 onClick={() => updateCartQuantity(product.id, item.quantity + 1)}
-                                className="p-1 bg-gray-800 rounded-lg"
+                                className="p-1 bg-gray-100 rounded-lg"
                               >
-                                <Plus className="w-4 h-4 text-gray-400" />
+                                <Plus className="w-4 h-4 text-gray-500" />
                               </button>
                               <button 
                                 onClick={() => removeFromCart(product.id)}
-                                className="p-2 bg-red-500/20 rounded-lg ml-2"
+                                className="p-2 bg-red-50 rounded-lg ml-2"
                               >
                                 <Trash2 className="w-4 h-4 text-red-400" />
                               </button>
@@ -222,14 +222,14 @@ export const Marketplace: React.FC = () => {
                 </div>
                 
                 {cart.length > 0 && (
-                  <div className="p-4 border-t border-gray-800">
+                  <div className="p-4 border-t border-gray-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-400">Subtotal:</span>
-                      <span className="text-xl font-bold text-green-400">{cartTotal} KRUX</span>
+                      <span className="text-gray-500">Subtotal:</span>
+                      <span className="text-xl font-bold text-green-600">{cartTotal} KRUX</span>
                     </div>
                     <div className="flex items-center justify-between mb-4 text-sm">
-                      <span className="text-gray-400">Your Balance:</span>
-                      <span className={`font-bold ${(user?.kruxBalance || 0) >= cartTotal ? 'text-white' : 'text-red-400'}`}>
+                      <span className="text-gray-500">Your Balance:</span>
+                      <span className={`font-bold ${(user?.kruxBalance || 0) >= cartTotal ? 'text-gray-900' : 'text-red-500'}`}>
                         {user?.kruxBalance || 0} KRUX
                       </span>
                     </div>
@@ -237,10 +237,10 @@ export const Marketplace: React.FC = () => {
                     <button
                       onClick={() => setShowCheckout(true)}
                       disabled={(user?.kruxBalance || 0) < cartTotal}
-                      className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+                      className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
                         (user?.kruxBalance || 0) >= cartTotal
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white pop-out-btn'
-                          : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                          ? 'bg-green-500 hover:bg-green-600 text-white pop-out-btn'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       }`}
                     >
                       {(user?.kruxBalance || 0) >= cartTotal 
@@ -289,9 +289,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onClick
   return (
     <div 
       onClick={onClick}
-      className="bg-[#111] rounded-2xl border border-gray-800 overflow-hidden hover:border-gray-700 transition-all cursor-pointer"
+      className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:border-green-300 transition-all duration-300 cursor-pointer"
     >
-      <div className="h-32 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-6xl relative">
+      <div className="h-32 bg-green-50 flex items-center justify-center text-6xl relative">
         {product.image}
         {product.stock < 10 && (
           <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -300,25 +300,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onClick
         )}
       </div>
       <div className="p-3">
-        <h3 className="text-white font-medium text-sm mb-1 line-clamp-1">{product.name}</h3>
+        <h3 className="text-gray-900 font-medium text-sm mb-1 line-clamp-1">{product.name}</h3>
         <div className="flex items-center gap-1 mb-2">
           <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
           <span className="text-gray-400 text-xs">{product.rating} ({product.reviews})</span>
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-green-400 font-bold">{product.price}</span>
-            <span className="text-gray-500 text-xs ml-1">KRUX</span>
+            <span className="text-green-700 font-bold">{product.price}</span>
+            <span className="text-gray-400 text-xs ml-1">KRUX</span>
           </div>
           <button
             onClick={handleAdd}
             disabled={!canAfford}
-            className={`p-2 rounded-lg transition-all ${
+            className={`p-2 rounded-lg transition-all duration-300 ${
               added 
                 ? 'bg-green-500 text-white' 
                 : canAfford 
-                  ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                  : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}
           >
             {added ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -355,12 +355,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-black pb-32">
+    <div className="min-h-screen bg-gray-50 pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-lg border-b border-gray-800 px-4 py-3">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors duration-300"
         >
           <ChevronLeft className="w-5 h-5" />
           <span>Back to Shop</span>
@@ -368,32 +368,32 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       </div>
 
       {/* Product Image */}
-      <div className="h-64 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-9xl">
+      <div className="h-64 bg-green-50 flex items-center justify-center text-9xl">
         {product.image}
       </div>
 
       {/* Product Info */}
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <h1 className="text-2xl font-bold text-white flex-1">{product.name}</h1>
-          <div className="flex items-center gap-1 bg-yellow-500/20 px-2 py-1 rounded-full">
+          <h1 className="text-2xl font-bold text-gray-900 flex-1">{product.name}</h1>
+          <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full">
             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-            <span className="text-yellow-400 font-medium">{product.rating}</span>
+            <span className="text-yellow-600 font-medium">{product.rating}</span>
           </div>
         </div>
         
-        <p className="text-gray-500 text-sm mb-4">{product.reviews} reviews • {product.stock} in stock</p>
+        <p className="text-gray-400 text-sm mb-4">{product.reviews} reviews • {product.stock} in stock</p>
         
-        <p className="text-gray-300 mb-6">{product.description}</p>
+        <p className="text-gray-600 mb-6">{product.description}</p>
 
         {/* Features */}
         <div className="mb-6">
-          <h3 className="text-white font-bold mb-3">Features</h3>
+          <h3 className="text-gray-900 font-bold mb-3">Features</h3>
           <div className="space-y-2">
             {product.features.map((feature, index) => (
               <div key={index} className="flex items-center gap-3">
-                <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-                <span className="text-gray-300 text-sm">{feature}</span>
+                <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600 text-sm">{feature}</span>
               </div>
             ))}
           </div>
@@ -401,45 +401,45 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
         {/* Trust Badges */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-[#111] rounded-xl p-3 text-center border border-gray-800">
-            <Truck className="w-6 h-6 text-green-400 mx-auto mb-1" />
-            <p className="text-white text-xs font-medium">Free Delivery</p>
-            <p className="text-gray-500 text-xs">On orders above 200</p>
+          <div className="bg-white rounded-xl p-3 text-center border border-gray-200 shadow-sm">
+            <Truck className="w-6 h-6 text-green-500 mx-auto mb-1" />
+            <p className="text-gray-700 text-xs font-medium">Free Delivery</p>
+            <p className="text-gray-400 text-xs">On orders above 200</p>
           </div>
-          <div className="bg-[#111] rounded-xl p-3 text-center border border-gray-800">
-            <Shield className="w-6 h-6 text-blue-400 mx-auto mb-1" />
-            <p className="text-white text-xs font-medium">Quality Assured</p>
-            <p className="text-gray-500 text-xs">Eco-certified</p>
+          <div className="bg-white rounded-xl p-3 text-center border border-gray-200 shadow-sm">
+            <Shield className="w-6 h-6 text-green-600 mx-auto mb-1" />
+            <p className="text-gray-700 text-xs font-medium">Quality Assured</p>
+            <p className="text-gray-400 text-xs">Eco-certified</p>
           </div>
-          <div className="bg-[#111] rounded-xl p-3 text-center border border-gray-800">
-            <Package className="w-6 h-6 text-purple-400 mx-auto mb-1" />
-            <p className="text-white text-xs font-medium">Easy Returns</p>
-            <p className="text-gray-500 text-xs">7-day policy</p>
+          <div className="bg-white rounded-xl p-3 text-center border border-gray-200 shadow-sm">
+            <Package className="w-6 h-6 text-green-700 mx-auto mb-1" />
+            <p className="text-gray-700 text-xs font-medium">Easy Returns</p>
+            <p className="text-gray-400 text-xs">7-day policy</p>
           </div>
         </div>
 
         {/* Price & Add to Cart */}
-        <div className="fixed bottom-20 left-0 right-0 bg-black/95 backdrop-blur-lg border-t border-gray-800 p-4">
+        <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-gray-400 text-sm">Price</p>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-green-400">{product.price}</span>
+                <span className="text-3xl font-bold text-green-700">{product.price}</span>
                 <span className="text-gray-400">KRUX</span>
               </div>
               {!canAfford && (
-                <p className="text-red-400 text-xs">Need {product.price - userBalance} more KRUX</p>
+                <p className="text-red-500 text-xs">Need {product.price - userBalance} more KRUX</p>
               )}
             </div>
             <button
               onClick={handleAdd}
               disabled={!canAfford}
-              className={`flex-1 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${
                 added 
                   ? 'bg-green-500 text-white'
                   : canAfford 
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white pop-out-btn' 
-                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    ? 'bg-green-500 hover:bg-green-600 text-white pop-out-btn' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
             >
               {added ? (
@@ -491,12 +491,12 @@ const CheckoutView: React.FC<CheckoutViewProps> = ({
         <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
           <Check className="w-10 h-10 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Order Placed!</h2>
-        <p className="text-gray-400 mb-4">Your eco-friendly products are on the way 🌱</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Placed!</h2>
+        <p className="text-gray-500 mb-4">Your eco-friendly products are on the way 🌱</p>
         <div className="flex items-center justify-center gap-2">
-          <Sparkles className="w-6 h-6 text-yellow-400" />
-          <span className="text-yellow-400 font-bold">Thank you for being an Eco Hero!</span>
-          <Sparkles className="w-6 h-6 text-yellow-400" />
+          <Sparkles className="w-6 h-6 text-green-500" />
+          <span className="text-green-600 font-bold">Thank you for being an Eco Hero!</span>
+          <Sparkles className="w-6 h-6 text-green-500" />
         </div>
       </div>
     );
@@ -504,100 +504,100 @@ const CheckoutView: React.FC<CheckoutViewProps> = ({
 
   return (
     <>
-      <div className="p-4 border-b border-gray-800">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="p-2 text-gray-400">
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h2 className="text-xl font-bold text-white">Delivery Details</h2>
+          <h2 className="text-xl font-bold text-gray-900">Delivery Details</h2>
         </div>
       </div>
       
       <div className="overflow-y-auto max-h-[50vh] p-4">
         <div className="space-y-4">
           <div>
-            <label className="text-gray-400 text-sm mb-1 block">Full Name *</label>
+            <label className="text-gray-500 text-sm mb-1 block">Full Name *</label>
             <input
               type="text"
               value={deliveryInfo.fullName}
               onChange={(e) => setDeliveryInfo({ ...deliveryInfo, fullName: e.target.value })}
               placeholder="Enter your full name"
-              className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:border-green-500 focus:outline-none"
+              className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none"
             />
           </div>
           
           <div>
-            <label className="text-gray-400 text-sm mb-1 block">Phone Number *</label>
+            <label className="text-gray-500 text-sm mb-1 block">Phone Number *</label>
             <input
               type="tel"
               value={deliveryInfo.phone}
               onChange={(e) => setDeliveryInfo({ ...deliveryInfo, phone: e.target.value })}
               placeholder="Enter your phone number"
-              className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:border-green-500 focus:outline-none"
+              className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none"
             />
           </div>
           
           <div>
-            <label className="text-gray-400 text-sm mb-1 block">Delivery Address *</label>
+            <label className="text-gray-500 text-sm mb-1 block">Delivery Address *</label>
             <textarea
               value={deliveryInfo.address}
               onChange={(e) => setDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
               placeholder="House/Flat No., Street, Landmark"
               rows={3}
-              className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:border-green-500 focus:outline-none resize-none"
+              className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none resize-none"
             />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-gray-400 text-sm mb-1 block">City *</label>
+              <label className="text-gray-500 text-sm mb-1 block">City *</label>
               <input
                 type="text"
                 value={deliveryInfo.city}
                 onChange={(e) => setDeliveryInfo({ ...deliveryInfo, city: e.target.value })}
                 placeholder="City"
-                className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:border-green-500 focus:outline-none"
+                className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-gray-400 text-sm mb-1 block">State</label>
+              <label className="text-gray-500 text-sm mb-1 block">State</label>
               <input
                 type="text"
                 value={deliveryInfo.state}
                 onChange={(e) => setDeliveryInfo({ ...deliveryInfo, state: e.target.value })}
                 placeholder="State"
-                className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:border-green-500 focus:outline-none"
+                className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none"
               />
             </div>
           </div>
           
           <div>
-            <label className="text-gray-400 text-sm mb-1 block">PIN Code *</label>
+            <label className="text-gray-500 text-sm mb-1 block">PIN Code *</label>
             <input
               type="text"
               value={deliveryInfo.pincode}
               onChange={(e) => setDeliveryInfo({ ...deliveryInfo, pincode: e.target.value })}
               placeholder="6-digit PIN code"
               maxLength={6}
-              className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:border-green-500 focus:outline-none"
+              className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none"
             />
           </div>
         </div>
       </div>
       
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-gray-400">Total:</span>
-          <span className="text-2xl font-bold text-green-400">{cartTotal} KRUX</span>
+          <span className="text-gray-500">Total:</span>
+          <span className="text-2xl font-bold text-green-600">{cartTotal} KRUX</span>
         </div>
         
         <button
           onClick={onCheckout}
           disabled={!isFormValid}
-          className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+          className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
             isFormValid
-              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white pop-out-btn'
-              : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+              ? 'bg-green-500 hover:bg-green-600 text-white pop-out-btn'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }`}
         >
           {isFormValid ? 'Place Order' : 'Fill all required fields'}

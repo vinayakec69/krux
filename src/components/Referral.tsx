@@ -34,54 +34,54 @@ export const Referral: React.FC = () => {
   };
 
   return (
-    <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl border border-purple-500/30 p-4">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Users className="w-5 h-5 text-purple-400" />
-        <h3 className="text-white font-bold">Invite &amp; Earn</h3>
-        <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">+50 KRUX/referral</span>
+        <Users className="w-5 h-5 text-green-600" />
+        <h3 className="text-gray-900 font-bold">Invite &amp; Earn</h3>
+        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">+50 KRUX/referral</span>
       </div>
 
       {/* Referral Code */}
-      <div className="bg-black/50 rounded-xl p-3 mb-3 flex items-center justify-between">
+      <div className="bg-green-50 rounded-xl p-3 mb-3 flex items-center justify-between border border-green-100">
         <div>
-          <p className="text-gray-500 text-xs mb-0.5">Your Code</p>
-          <p className="text-[#BF00FF] font-bold text-2xl tracking-widest">{code}</p>
+          <p className="text-gray-400 text-xs mb-0.5">Your Code</p>
+          <p className="text-green-700 font-bold text-2xl tracking-widest font-mono">{code}</p>
         </div>
         <button
           onClick={handleCopy}
-          className="p-3 bg-purple-500/20 rounded-xl border border-purple-500/40 hover:bg-purple-500/30 transition-all"
+          className="p-3 bg-green-100 rounded-xl border border-green-200 hover:bg-green-200 transition-all duration-300"
         >
-          {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-purple-400" />}
+          {copied ? <Check className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5 text-green-700" />}
         </button>
       </div>
 
       {/* Stats */}
       <div className="flex items-center justify-between mb-3">
         <div className="text-center">
-          <p className="text-2xl font-bold text-white">{user?.referralCount || 0}</p>
-          <p className="text-gray-500 text-xs">Friends invited</p>
+          <p className="text-2xl font-bold text-gray-900">{user?.referralCount || 0}</p>
+          <p className="text-gray-400 text-xs">Friends invited</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-bold text-[#39FF14]">{(user?.referralCount || 0) * 50}</p>
-          <p className="text-gray-500 text-xs">KRUX earned</p>
+          <p className="text-2xl font-bold text-green-600">{(user?.referralCount || 0) * 50}</p>
+          <p className="text-gray-400 text-xs">KRUX earned</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-bold text-purple-400">∞</p>
-          <p className="text-gray-500 text-xs">No limit</p>
+          <p className="text-2xl font-bold text-green-700">∞</p>
+          <p className="text-gray-400 text-xs">No limit</p>
         </div>
       </div>
 
       <div className="flex gap-2">
         <button
           onClick={handleShare}
-          className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#BF00FF]/20 border border-[#BF00FF]/40 rounded-xl text-purple-300 font-medium hover:bg-[#BF00FF]/30 transition-all"
+          className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-600 rounded-xl text-white font-medium transition-all duration-300"
         >
           <Share2 className="w-4 h-4" />
           Share Link
         </button>
         <button
           onClick={handleTestReferral}
-          className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#39FF14]/10 border border-[#39FF14]/30 rounded-xl text-[#39FF14] font-medium hover:bg-[#39FF14]/20 transition-all text-sm"
+          className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-100 border border-green-200 rounded-xl text-green-700 font-medium hover:bg-green-200 transition-all duration-300 text-sm"
         >
           🎁 Simulate Referral
         </button>

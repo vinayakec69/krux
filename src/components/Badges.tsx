@@ -23,11 +23,11 @@ export const Badges: React.FC = () => {
       {/* Badge unlock popup */}
       {celebrating && ALL_BADGES[celebrating] && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="badge-unlock bg-[#111] border border-yellow-400/60 rounded-3xl p-6 text-center mx-4 shadow-2xl">
+          <div className="badge-unlock bg-white border border-green-300 rounded-3xl p-6 text-center mx-4 shadow-xl">
             <div className="text-5xl mb-3 sparkle">{ALL_BADGES[celebrating].emoji}</div>
-            <p className="text-yellow-400 font-bold text-lg">Badge Unlocked!</p>
-            <p className="text-white font-bold">{ALL_BADGES[celebrating].label}</p>
-            <p className="text-gray-400 text-sm mt-1">{ALL_BADGES[celebrating].desc}</p>
+            <p className="text-green-600 font-bold text-lg">Badge Unlocked!</p>
+            <p className="text-gray-900 font-bold">{ALL_BADGES[celebrating].label}</p>
+            <p className="text-gray-500 text-sm mt-1">{ALL_BADGES[celebrating].desc}</p>
           </div>
         </div>
       )}
@@ -41,17 +41,17 @@ export const Badges: React.FC = () => {
               key={id}
               className={`flex-shrink-0 w-20 flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all ${
                 isUnlocked
-                  ? 'bg-yellow-500/10 border-yellow-500/50 glow-green'
-                  : 'bg-[#111] border-gray-800 opacity-50'
+                  ? 'bg-green-100 border-green-300 shadow-sm'
+                  : 'bg-gray-100 border-gray-200 opacity-60'
               }`}
             >
               <span className={`text-2xl ${isUnlocked ? 'sparkle' : 'grayscale'}`}>
                 {badge.emoji}
               </span>
-              <span className="text-white text-xs font-medium text-center leading-tight">
+              <span className={`text-xs font-medium text-center leading-tight ${isUnlocked ? 'text-gray-900' : 'text-gray-400'}`}>
                 {badge.label}
               </span>
-              {!isUnlocked && <span className="text-gray-600 text-xs">🔒</span>}
+              {!isUnlocked && <span className="text-gray-400 text-xs">🔒</span>}
             </div>
           );
         })}
