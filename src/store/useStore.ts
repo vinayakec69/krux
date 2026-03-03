@@ -165,6 +165,7 @@ interface AppState {
   pendingKrux: number;
   newBadge: string | null;
   levelUpTo: number | null;
+  darkMode: boolean;
 
   // Auth Actions
   login: (email: string, password: string) => Promise<boolean>;
@@ -193,6 +194,7 @@ interface AppState {
   setLoading: (loading: boolean) => void;
   dismissNewBadge: () => void;
   dismissLevelUp: () => void;
+  toggleDarkMode: () => void;
 
   // Streak & Freeze
   updateStreak: () => void;
@@ -200,6 +202,7 @@ interface AppState {
 
   // Engagement Features
   spinWheel: () => number | null;
+  claimSpinReward: (prize: number) => void;
   addXp: (amount: number) => void;
   updateChallengeProgress: (challengeId: string, delta: number) => void;
   resetChallengesIfNeeded: () => void;
@@ -391,6 +394,7 @@ export const useStore = create<AppState>()(
       pendingKrux: 0,
       newBadge: null,
       levelUpTo: null,
+      darkMode: false,
 
       // Auth Actions
       login: async (email: string, password: string) => {
@@ -634,6 +638,7 @@ export const useStore = create<AppState>()(
       setLoading: (loading: boolean) => set({ isLoading: loading }),
       dismissNewBadge: () => set({ newBadge: null }),
       dismissLevelUp: () => set({ levelUpTo: null }),
+      toggleDarkMode: () => set(state => ({ darkMode: !state.darkMode })),
 
       // Streak & Freeze
       updateStreak: () => {
@@ -709,6 +714,15 @@ export const useStore = create<AppState>()(
         addKrux(prize);
         addXp(10);
         return prize;
+      },
+
+      claimSpinReward: (prize: number) => {
+        const today = new Date().toDateString();
+        set(state => ({
+          user: state.user ? { ...state.user, lastSpinDate: today } : null,
+        }));
+        get().addKrux(prize);
+        get().addXp(10);
       },
 
       // XP / Level
@@ -818,6 +832,7 @@ export const useStore = create<AppState>()(
         scanRecords: state.scanRecords,
         cart: state.cart,
         orders: state.orders,
+        darkMode: state.darkMode,
       }),
     }
   )
