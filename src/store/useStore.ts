@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ScanMetadata, checkForFraud } from '@/utils/fraudDetection';
+import { supabase } from '@/lib/supabase';
+import { signupSchema, loginSchema } from '@/utils/validation';
 
 export interface User {
   id: string;
@@ -169,7 +171,7 @@ interface AppState {
 
   // Auth Actions
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   signup: (name: string, email: string, password: string, location: string) => Promise<boolean>;
 
   // Scan Actions
@@ -399,57 +401,104 @@ export const useStore = create<AppState>()(
       // Auth Actions
       login: async (email: string, password: string) => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        const storedUsers = localStorage.getItem('krux_users');
-        const users = storedUsers ? JSON.parse(storedUsers) : [];
-        const user = users.find((u: User & { password: string }) => u.email === email && u.password === password);
+        // Validate inputs
+        const parsed = loginSchema.safeParse({ email, password });
+        if (!parsed.success) {
+          set({ isLoading: false });
+          return false;
+        }
 
-        if (user) {
-          const { password: _, ...userData } = user;
-          // Ensure new fields exist for old accounts
-          const enriched: User = {
-            badges: [],
-            challengeProgress: {},
-            lastChallengeReset: null,
-            streakFreezes: 0,
-            lastSpinDate: null,
-            xp: 0,
-            level: 1,
-            referralCode: generateReferralCode(userData.id),
-            referralCount: 0,
-            ...userData,
-          };
-          set({ user: enriched, isAuthenticated: true, isLoading: false });
-          return true;
+        // Try Supabase Auth first
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: parsed.data.email,
+          password: parsed.data.password,
+        });
+
+        if (!authError && authData.user) {
+          // Fetch profile from Supabase
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+          if (profile) {
+            const userData: User = {
+              id: authData.user.id,
+              name: profile.name as string,
+              email: authData.user.email ?? email,
+              avatar: profile.avatar as string,
+              kruxBalance: profile.krux_balance as number,
+              greenScore: profile.green_score as number,
+              streak: profile.streak as number,
+              lastScanDate: profile.last_scan_date as string | null,
+              totalScans: profile.total_scans as number,
+              co2Saved: Number(profile.co2_saved),
+              waterSaved: Number(profile.water_saved),
+              plasticRecycled: Number(profile.plastic_recycled),
+              location: profile.location as string,
+              rank: 0,
+              badges: (profile.badges as string[]) ?? [],
+              challengeProgress: (profile.challenge_progress as Record<string, number>) ?? {},
+              lastChallengeReset: profile.last_challenge_reset as string | null,
+              streakFreezes: profile.streak_freezes as number,
+              lastSpinDate: profile.last_spin_date as string | null,
+              xp: profile.xp as number,
+              level: profile.level as number,
+              referralCode: profile.referral_code as string,
+              referralCount: profile.referral_count as number,
+            };
+            set({ user: userData, isAuthenticated: true, isLoading: false });
+            return true;
+          }
         }
 
         set({ isLoading: false });
         return false;
       },
 
-      logout: () => {
+      logout: async () => {
+        await supabase.auth.signOut();
         set({ user: null, isAuthenticated: false, cart: [], activeTab: 'home' });
       },
 
       signup: async (name: string, email: string, password: string, location: string) => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        const storedUsers = localStorage.getItem('krux_users');
-        const users = storedUsers ? JSON.parse(storedUsers) : [];
-
-        if (users.find((u: User & { password: string }) => u.email === email)) {
+        // Validate with password-strength rules
+        const parsed = signupSchema.safeParse({ name, email, password, location });
+        if (!parsed.success) {
           set({ isLoading: false });
           return false;
         }
 
-        const id = Date.now().toString();
-        const newUser: User & { password: string } = {
-          id,
-          name,
-          email,
-          password,
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: parsed.data.email,
+          password: parsed.data.password,
+          options: {
+            data: { name: parsed.data.name, location: parsed.data.location },
+          },
+        });
+
+        if (authError || !authData.user) {
+          set({ isLoading: false });
+          return false;
+        }
+
+        // Create profile row
+        await supabase.from('profiles').insert({
+          id: authData.user.id,
+          name: parsed.data.name,
+          location: parsed.data.location,
+          avatar: '🌱',
+          krux_balance: 50,
+        });
+
+        const newUser: User = {
+          id: authData.user.id,
+          name: parsed.data.name,
+          email: parsed.data.email,
           avatar: '🌱',
           kruxBalance: 50,
           greenScore: 0,
@@ -459,8 +508,8 @@ export const useStore = create<AppState>()(
           co2Saved: 0,
           waterSaved: 0,
           plasticRecycled: 0,
-          location,
-          rank: users.length + 1,
+          location: parsed.data.location,
+          rank: 0,
           badges: [],
           challengeProgress: {},
           lastChallengeReset: null,
@@ -468,15 +517,11 @@ export const useStore = create<AppState>()(
           lastSpinDate: null,
           xp: 0,
           level: 1,
-          referralCode: generateReferralCode(id),
+          referralCode: generateReferralCode(authData.user.id),
           referralCount: 0,
         };
 
-        users.push(newUser);
-        localStorage.setItem('krux_users', JSON.stringify(users));
-
-        const { password: _, ...userData } = newUser;
-        set({ user: userData, isAuthenticated: true, isLoading: false });
+        set({ user: newUser, isAuthenticated: true, isLoading: false });
         return true;
       },
 
