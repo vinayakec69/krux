@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ScanMetadata, checkForFraud } from '@/utils/fraudDetection';
+import { authApi, profileApi, scanApi } from '@/lib/api';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export interface User {
   id: string;
@@ -210,6 +212,7 @@ interface AppState {
 
   // Initialize
   initializeApp: () => void;
+  syncProfile: () => Promise<void>;
 }
 
 const INITIAL_PRODUCTS: Product[] = [
@@ -399,6 +402,48 @@ export const useStore = create<AppState>()(
       // Auth Actions
       login: async (email: string, password: string) => {
         set({ isLoading: true });
+
+        // Try Supabase first if configured
+        if (isSupabaseConfigured()) {
+          const { data, error } = await authApi.login(email, password);
+          if (!error && data) {
+            // Fetch profile from Supabase
+            const { data: profile } = await profileApi.getProfile(data.user_id);
+            if (profile) {
+              const user: User = {
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                avatar: profile.avatar,
+                kruxBalance: profile.krux_balance,
+                greenScore: profile.green_score,
+                streak: profile.streak,
+                lastScanDate: profile.last_scan_date,
+                totalScans: profile.total_scans,
+                co2Saved: Number(profile.co2_saved),
+                waterSaved: Number(profile.water_saved),
+                plasticRecycled: Number(profile.plastic_recycled),
+                location: profile.location,
+                rank: 0,
+                badges: profile.badges,
+                challengeProgress: (profile.challenge_progress as Record<string, number>) ?? {},
+                lastChallengeReset: profile.last_challenge_reset,
+                streakFreezes: profile.streak_freezes,
+                lastSpinDate: profile.last_spin_date,
+                xp: profile.xp,
+                level: profile.level,
+                referralCode: profile.referral_code ?? generateReferralCode(profile.id),
+                referralCount: profile.referral_count,
+              };
+              set({ user, isAuthenticated: true, isLoading: false });
+              return true;
+            }
+          }
+          set({ isLoading: false });
+          return false;
+        }
+
+        // Fallback: localStorage-based auth
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const storedUsers = localStorage.getItem('krux_users');
@@ -429,11 +474,61 @@ export const useStore = create<AppState>()(
       },
 
       logout: () => {
+        if (isSupabaseConfigured()) {
+          authApi.logout();
+        }
         set({ user: null, isAuthenticated: false, cart: [], activeTab: 'home' });
       },
 
       signup: async (name: string, email: string, password: string, location: string) => {
         set({ isLoading: true });
+
+        // Try Supabase first if configured
+        if (isSupabaseConfigured()) {
+          const { data, error } = await authApi.signup(email, password, name, location);
+          if (error) {
+            set({ isLoading: false });
+            return false;
+          }
+          if (data) {
+            // Profile is auto-created by the auth trigger; fetch it
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const { data: profile } = await profileApi.getProfile(data.user_id);
+            if (profile) {
+              const user: User = {
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                avatar: profile.avatar,
+                kruxBalance: profile.krux_balance,
+                greenScore: profile.green_score,
+                streak: profile.streak,
+                lastScanDate: profile.last_scan_date,
+                totalScans: profile.total_scans,
+                co2Saved: Number(profile.co2_saved),
+                waterSaved: Number(profile.water_saved),
+                plasticRecycled: Number(profile.plastic_recycled),
+                location: profile.location,
+                rank: 0,
+                badges: profile.badges,
+                challengeProgress: (profile.challenge_progress as Record<string, number>) ?? {},
+                lastChallengeReset: profile.last_challenge_reset,
+                streakFreezes: profile.streak_freezes,
+                lastSpinDate: profile.last_spin_date,
+                xp: profile.xp,
+                level: profile.level,
+                referralCode: profile.referral_code ?? generateReferralCode(profile.id),
+                referralCount: profile.referral_count,
+              };
+              set({ user, isAuthenticated: true, isLoading: false });
+              return true;
+            }
+          }
+          set({ isLoading: false });
+          return false;
+        }
+
+        // Fallback: localStorage-based signup
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const storedUsers = localStorage.getItem('krux_users');
@@ -490,6 +585,57 @@ export const useStore = create<AppState>()(
           return { success: false, message: `🚫 FRAUD DETECTED: ${fraudCheck.reason}` };
         }
 
+        // If Supabase is configured, use the server-side edge function
+        if (isSupabaseConfigured()) {
+          const { data, error } = await scanApi.submitScan({
+            image_hash: metadata.imageHash,
+            color_histogram: metadata.colorHistogram,
+            device_id: metadata.deviceId,
+            gps_lat: metadata.gpsCoordinates?.lat,
+            gps_lng: metadata.gpsCoordinates?.lng,
+            plastic_type: plasticType as 'PET' | 'HDPE' | 'PVC' | 'LDPE' | 'PP' | 'PS' | 'OTHER',
+            confidence: kruxEarned * 10,
+          });
+
+          if (error || !data) {
+            return { success: false, message: error ?? 'Scan submission failed' };
+          }
+
+          // Update local user state with server-confirmed values
+          set(state => ({
+            user: state.user ? {
+              ...state.user,
+              kruxBalance: data.new_balance,
+              greenScore: state.user.greenScore + data.coins_earned * 2,
+              totalScans: state.user.totalScans + 1,
+              co2Saved: state.user.co2Saved + 0.5,
+              waterSaved: state.user.waterSaved + 2,
+              plasticRecycled: state.user.plasticRecycled + 0.05,
+            } : null,
+          }));
+
+          updateStreak();
+          addXp(25);
+          updateChallengeProgress('scan_3', 1);
+          updateChallengeProgress('earn_30', data.coins_earned);
+          updateChallengeProgress('no_fraud', 1);
+          updateChallengeProgress('scan_20_week', 1);
+
+          const updatedUser = get().user;
+          if (updatedUser) {
+            const newBadges = checkEarnedBadges(updatedUser);
+            if (newBadges.length > 0) {
+              set(state => ({
+                user: state.user ? { ...state.user, badges: [...state.user.badges, ...newBadges] } : null,
+                newBadge: newBadges[0],
+              }));
+            }
+          }
+
+          return { success: true, message: `+${data.coins_earned} KRUX earned!` };
+        }
+
+        // Fallback: local state only
         const newScan: ScanRecord = {
           id: Date.now().toString(),
           userId: user.id,
@@ -822,6 +968,36 @@ export const useStore = create<AppState>()(
         }
         get().resetChallengesIfNeeded();
         get().addXp(5); // daily login XP
+      },
+
+      syncProfile: async () => {
+        const { user } = get();
+        if (!user || !isSupabaseConfigured()) return;
+
+        const { data: profile } = await profileApi.getProfile(user.id);
+        if (!profile) return;
+
+        set(state => ({
+          user: state.user ? {
+            ...state.user,
+            kruxBalance: profile.krux_balance,
+            greenScore: profile.green_score,
+            streak: profile.streak,
+            lastScanDate: profile.last_scan_date,
+            totalScans: profile.total_scans,
+            co2Saved: Number(profile.co2_saved),
+            waterSaved: Number(profile.water_saved),
+            plasticRecycled: Number(profile.plastic_recycled),
+            xp: profile.xp,
+            level: profile.level,
+            badges: profile.badges,
+            streakFreezes: profile.streak_freezes,
+            lastSpinDate: profile.last_spin_date,
+            challengeProgress: (profile.challenge_progress as Record<string, number>) ?? {},
+            lastChallengeReset: profile.last_challenge_reset,
+            referralCount: profile.referral_count,
+          } : null,
+        }));
       },
     }),
     {

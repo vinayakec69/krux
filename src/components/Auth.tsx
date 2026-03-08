@@ -1,6 +1,25 @@
 import React, { useState } from 'react';
-import { Leaf, Mail, Lock, User, MapPin, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Leaf, Mail, Lock, User, MapPin, ArrowRight, Loader2, Sparkles, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+
+function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+  if (password.length === 0) return { score: 0, label: '', color: '' };
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 1) return { score, label: 'Weak', color: 'bg-red-400' };
+  if (score === 2) return { score, label: 'Fair', color: 'bg-yellow-400' };
+  if (score === 3) return { score, label: 'Good', color: 'bg-blue-400' };
+  return { score, label: 'Strong', color: 'bg-green-500' };
+}
+
+function validateEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,9 +33,30 @@ export const Auth: React.FC = () => {
 
   const { login, signup } = useStore();
 
+  const passwordStrength = getPasswordStrength(password);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Client-side validation
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    if (!isLogin && password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (!isLogin && !name.trim()) {
+      setError('Please enter your full name');
+      return;
+    }
+    if (!isLogin && !location.trim()) {
+      setError('Please enter your city or location');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -26,20 +66,20 @@ export const Auth: React.FC = () => {
           setError('Invalid email or password');
         }
       } else {
-        if (!name || !email || !password || !location) {
-          setError('Please fill in all fields');
-          setIsSubmitting(false);
-          return;
-        }
-        const success = await signup(name, email, password, location);
+        const success = await signup(name.trim(), email, password, location.trim());
         if (!success) {
-          setError('Email already exists');
+          setError('Email already in use. Please try a different email or log in.');
         }
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      const message = err instanceof Error ? err.message : '';
+      if (message.toLowerCase().includes('rate') || message.toLowerCase().includes('too many')) {
+        setError('Too many attempts. Please wait a moment and try again.');
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     }
-    
+
     setIsSubmitting(false);
   };
 
@@ -114,22 +154,41 @@ export const Auth: React.FC = () => {
                 />
               </div>
 
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-xl py-4 pl-12 pr-12 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
+              <div>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl py-4 pl-12 pr-12 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {!isLogin && password.length > 0 && (
+                  <div className="mt-2 px-1">
+                    <div className="flex gap-1 mb-1">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded-full transition-colors ${
+                            i <= passwordStrength.score ? passwordStrength.color : 'bg-gray-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Password strength: <span className="font-medium">{passwordStrength.label}</span>
+                    </p>
+                  </div>
+                )}
               </div>
 
               {!isLogin && (
@@ -165,6 +224,11 @@ export const Auth: React.FC = () => {
                   </>
                 )}
               </button>
+
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 pt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+                <span>Secured with industry-standard encryption</span>
+              </div>
             </form>
           </div>
 
