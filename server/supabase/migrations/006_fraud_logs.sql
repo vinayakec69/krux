@@ -34,8 +34,8 @@ begin
     and created_at >= now() - interval '7 days';
 
   if weekly_flags >= 5 then
-    -- Disable the user's auth account
-    update auth.users set banned_until = 'infinity' where id = p_user_id;
+    -- Disable the user's auth account (far-future timestamp for broad compatibility)
+    update auth.users set banned_until = '9999-12-31 23:59:59+00'::timestamptz where id = p_user_id;
     insert into public.fraud_logs (user_id, fraud_type, details, action_taken)
     values (p_user_id, 'auto_ban', jsonb_build_object('weekly_flags', weekly_flags), 'banned');
   end if;

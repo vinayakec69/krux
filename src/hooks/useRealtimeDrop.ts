@@ -51,7 +51,7 @@ export function useRealtimeDrop({
       // Also listen for broadcast events (sent by the edge function)
       .on('broadcast', { event: 'drop_confirmed' }, (payload) => {
         if (
-          !payload.payload ||
+          payload.payload &&
           (payload.payload as Record<string, unknown>)['session_id'] === sessionId
         ) {
           onDropRef.current();

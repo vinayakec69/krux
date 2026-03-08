@@ -118,10 +118,9 @@ def train(cfg: dict) -> None:
             restore_best_weights=True,
         ),
         keras.callbacks.TensorBoard(log_dir=oc["logs_dir"]),
-        keras.callbacks.CosineDecayRestarts(
-            initial_learning_rate=tc["learning_rate"],
-            first_decay_steps=len(train_ds) * 10,
-        ) if tc["lr_schedule"] == "cosine_annealing" else keras.callbacks.ReduceLROnPlateau(),
+        keras.callbacks.ReduceLROnPlateau(
+            monitor="val_loss", factor=0.5, patience=3, min_lr=1e-6
+        ),
     ]
 
     # Phase 1: train head only

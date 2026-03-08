@@ -10,6 +10,9 @@ Usage:
 import argparse
 from pathlib import Path
 
+import tensorflow as tf
+import tensorflowjs as tfjs  # type: ignore[import]
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export model to TF.js")
@@ -26,8 +29,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    import tensorflowjs as tfjs  # type: ignore[import]
-
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -35,7 +36,7 @@ def main() -> None:
 
     print(f"Exporting {args.model} → {output_dir} (quantize={quantization})...")
     tfjs.converters.save_keras_model(
-        __import__("tensorflow").keras.models.load_model(args.model),
+        tf.keras.models.load_model(args.model),
         str(output_dir),
         quantization_dtype_map={"*": quantization} if quantization else None,
     )

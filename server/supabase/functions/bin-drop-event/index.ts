@@ -112,14 +112,22 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'completed', completed_at: new Date().toISOString() })
       .eq('id', session.id as string);
 
-    // Update profile stats
-    await supabase
+    // Update profile stats atomically using separate increments
+    const { data: currentProfile } = await supabase
       .from('profiles')
-      .update({
-        total_scans: supabase.rpc('increment_field', { row_id: session.user_id, field: 'total_scans' }),
-        green_score: supabase.rpc('increment_field', { row_id: session.user_id, field: 'green_score' }),
-      })
-      .eq('id', session.user_id as string);
+      .select('total_scans, green_score')
+      .eq('id', session.user_id as string)
+      .single();
+
+    if (currentProfile) {
+      await supabase
+        .from('profiles')
+        .update({
+          total_scans: (currentProfile.total_scans as number) + 1,
+          green_score: (currentProfile.green_score as number) + (session.krux_earned as number) * 2,
+        })
+        .eq('id', session.user_id as string);
+    }
 
     // Broadcast drop confirmation via Realtime
     await supabase.channel('drop_event:' + (session.id as string)).send({

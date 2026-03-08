@@ -65,8 +65,7 @@ export async function classifyFromCanvas(
     // Below threshold → return UNKNOWN signal as OTHER
     const effectiveType: PlasticType =
       confidence < CONFIDENCE_THRESHOLD ? 'OTHER' : type;
-    const effectiveConf =
-      confidence < CONFIDENCE_THRESHOLD ? confidence : confidence;
+    const effectiveConf = confidence;
 
     return {
       type: effectiveType,
