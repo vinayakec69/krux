@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
-import { Leaf, Mail, Lock, User, MapPin, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Leaf, Mail, Lock, User, MapPin, ArrowRight, Loader2, Sparkles, Eye, EyeOff, WifiOff } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { isSupabaseConfigured } from '@/lib/supabase';
+
+const PASSWORD_REQUIREMENTS = [
+  { label: '8+ characters', test: (p: string) => p.length >= 8 },
+  { label: 'Uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'Number', test: (p: string) => /[0-9]/.test(p) },
+  { label: 'Special character', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+];
+
+function getStrengthColor(strength: number): string {
+  if (strength <= 1) return 'bg-red-400';
+  if (strength <= 2) return 'bg-amber-400';
+  if (strength <= 3) return 'bg-yellow-400';
+  return 'bg-green-500';
+}
 
 export const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,9 +36,9 @@ export const Auth: React.FC = () => {
 
     try {
       if (isLogin) {
-        const success = await login(email, password);
-        if (!success) {
-          setError('Invalid email or password');
+        const result = await login(email, password);
+        if (!result.success) {
+          setError(result.error ?? 'Invalid email or password');
         }
       } else {
         if (!name || !email || !password || !location) {
@@ -31,9 +46,9 @@ export const Auth: React.FC = () => {
           setIsSubmitting(false);
           return;
         }
-        const success = await signup(name, email, password, location);
-        if (!success) {
-          setError('Email already exists');
+        const result = await signup(name, email, password, location);
+        if (!result.success) {
+          setError(result.error ?? 'Sign up failed. Please try again.');
         }
       }
     } catch (err) {
@@ -42,6 +57,10 @@ export const Auth: React.FC = () => {
     
     setIsSubmitting(false);
   };
+
+  const passwordStrength = !isLogin && password
+    ? PASSWORD_REQUIREMENTS.filter(r => r.test(password)).length
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -55,6 +74,18 @@ export const Auth: React.FC = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">KRUX</h1>
           <p className="text-gray-500">Scan. Earn. Save the Planet.</p>
         </div>
+
+        {/* Offline/Demo Mode Banner */}
+        {!isSupabaseConfigured && (
+          <div className="bg-amber-50 rounded-2xl p-4 mb-4 border border-amber-200 max-w-md w-full">
+            <div className="flex items-center gap-3">
+              <WifiOff className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <p className="text-amber-700 text-sm">
+                <span className="font-bold">Offline / Demo mode.</span> Data is stored locally on this device.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* MTP Banner */}
         <div className="bg-green-100 rounded-2xl p-4 mb-8 border border-green-200 max-w-md w-full">
@@ -114,22 +145,52 @@ export const Auth: React.FC = () => {
                 />
               </div>
 
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-xl py-4 pl-12 pr-12 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
+              <div>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl py-4 pl-12 pr-12 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+
+                {/* Password requirements (signup only) */}
+                {!isLogin && (
+                  <div className="mt-2 space-y-1">
+                    {/* Strength bar */}
+                    {password.length > 0 && (
+                      <div className="flex gap-1 mb-2">
+                        {[1, 2, 3, 4].map(i => (
+                          <div
+                            key={i}
+                            className={`h-1 flex-1 rounded-full transition-colors ${
+                              i <= passwordStrength ? getStrengthColor(passwordStrength) : 'bg-gray-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-1">
+                      {PASSWORD_REQUIREMENTS.map(req => (
+                        <div key={req.label} className="flex items-center gap-1">
+                          <span className={`text-xs ${req.test(password) ? 'text-green-600' : 'text-gray-400'}`}>
+                            {req.test(password) ? '✓' : '○'} {req.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {!isLogin && (

@@ -1,8 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ScanMetadata, checkForFraud } from '@/utils/fraudDetection';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { signupSchema, loginSchema } from '@/utils/validation';
+import { hashPassword } from '@/utils/hashPassword';
+
+/** Shape of a user record stored in localStorage for offline/demo mode. */
+interface StoredUser {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  location: string;
+  createdAt: number;
+}
+
+const LS_USERS_KEY = 'krux_users';
 
 export interface User {
   id: string;
@@ -170,9 +183,9 @@ interface AppState {
   darkMode: boolean;
 
   // Auth Actions
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  signup: (name: string, email: string, password: string, location: string) => Promise<boolean>;
+  signup: (name: string, email: string, password: string, location: string) => Promise<{ success: boolean; error?: string }>;
 
   // Scan Actions
   addScan: (plasticType: string, metadata: ScanMetadata, kruxEarned: number) => Promise<{ success: boolean; message: string }>;
@@ -406,60 +419,122 @@ export const useStore = create<AppState>()(
         const parsed = loginSchema.safeParse({ email, password });
         if (!parsed.success) {
           set({ isLoading: false });
-          return false;
+          return { success: false, error: parsed.error.issues[0].message };
         }
 
-        // Try Supabase Auth first
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: parsed.data.email,
-          password: parsed.data.password,
-        });
+        // Try Supabase Auth when configured
+        if (isSupabaseConfigured) {
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: parsed.data.email,
+            password: parsed.data.password,
+          });
 
-        if (!authError && authData.user) {
-          // Fetch profile from Supabase
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
+          if (!authError && authData.user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', authData.user.id)
+              .single();
 
-          if (profile) {
-            const userData: User = {
-              id: authData.user.id,
-              name: profile.name as string,
-              email: authData.user.email ?? email,
-              avatar: profile.avatar as string,
-              kruxBalance: profile.krux_balance as number,
-              greenScore: profile.green_score as number,
-              streak: profile.streak as number,
-              lastScanDate: profile.last_scan_date as string | null,
-              totalScans: profile.total_scans as number,
-              co2Saved: Number(profile.co2_saved),
-              waterSaved: Number(profile.water_saved),
-              plasticRecycled: Number(profile.plastic_recycled),
-              location: profile.location as string,
-              rank: 0,
-              badges: (profile.badges as string[]) ?? [],
-              challengeProgress: (profile.challenge_progress as Record<string, number>) ?? {},
-              lastChallengeReset: profile.last_challenge_reset as string | null,
-              streakFreezes: profile.streak_freezes as number,
-              lastSpinDate: profile.last_spin_date as string | null,
-              xp: profile.xp as number,
-              level: profile.level as number,
-              referralCode: profile.referral_code as string,
-              referralCount: profile.referral_count as number,
-            };
-            set({ user: userData, isAuthenticated: true, isLoading: false });
-            return true;
+            if (profile) {
+              const userData: User = {
+                id: authData.user.id,
+                name: profile.name as string,
+                email: authData.user.email ?? email,
+                avatar: profile.avatar as string,
+                kruxBalance: profile.krux_balance as number,
+                greenScore: profile.green_score as number,
+                streak: profile.streak as number,
+                lastScanDate: profile.last_scan_date as string | null,
+                totalScans: profile.total_scans as number,
+                co2Saved: Number(profile.co2_saved),
+                waterSaved: Number(profile.water_saved),
+                plasticRecycled: Number(profile.plastic_recycled),
+                location: profile.location as string,
+                rank: 0,
+                badges: (profile.badges as string[]) ?? [],
+                challengeProgress: (profile.challenge_progress as Record<string, number>) ?? {},
+                lastChallengeReset: profile.last_challenge_reset as string | null,
+                streakFreezes: profile.streak_freezes as number,
+                lastSpinDate: profile.last_spin_date as string | null,
+                xp: profile.xp as number,
+                level: profile.level as number,
+                referralCode: profile.referral_code as string,
+                referralCount: profile.referral_count as number,
+              };
+              set({ user: userData, isAuthenticated: true, isLoading: false });
+              return { success: true };
+            }
+          }
+
+          set({ isLoading: false });
+          return { success: false, error: 'Invalid email or password' };
+        }
+
+        // localStorage fallback (offline/demo mode)
+        const storedRaw = localStorage.getItem(LS_USERS_KEY);
+        const storedUsers: StoredUser[] = storedRaw ? JSON.parse(storedRaw) : [];
+        const pwHash = await hashPassword(parsed.data.password);
+        const match = storedUsers.find(
+          u => u.email.toLowerCase() === parsed.data.email.toLowerCase() && u.passwordHash === pwHash,
+        );
+
+        if (!match) {
+          set({ isLoading: false });
+          return { success: false, error: 'Invalid email or password' };
+        }
+
+        // Restore user from persisted store state (if available) or reconstruct defaults
+        const persistedRaw = localStorage.getItem('krux-storage');
+        let restoredUser: User | null = null;
+        if (persistedRaw) {
+          try {
+            const persistedState = JSON.parse(persistedRaw);
+            const persistedUser: User | null = persistedState?.state?.user ?? null;
+            if (persistedUser && persistedUser.id === match.id) {
+              restoredUser = persistedUser;
+            }
+          } catch (e) {
+            console.warn('Failed to restore persisted user state:', e);
           }
         }
 
-        set({ isLoading: false });
-        return false;
+        if (!restoredUser) {
+          restoredUser = {
+            id: match.id,
+            name: match.name,
+            email: match.email,
+            avatar: '🌱',
+            kruxBalance: 50,
+            greenScore: 0,
+            streak: 0,
+            lastScanDate: null,
+            totalScans: 0,
+            co2Saved: 0,
+            waterSaved: 0,
+            plasticRecycled: 0,
+            location: match.location,
+            rank: 0,
+            badges: [],
+            challengeProgress: {},
+            lastChallengeReset: null,
+            streakFreezes: 0,
+            lastSpinDate: null,
+            xp: 0,
+            level: 1,
+            referralCode: generateReferralCode(match.id),
+            referralCount: 0,
+          };
+        }
+
+        set({ user: restoredUser, isAuthenticated: true, isLoading: false });
+        return { success: true };
       },
 
       logout: async () => {
-        await supabase.auth.signOut();
+        if (isSupabaseConfigured) {
+          await supabase.auth.signOut();
+        }
         set({ user: null, isAuthenticated: false, cart: [], activeTab: 'home' });
       },
 
@@ -470,33 +545,89 @@ export const useStore = create<AppState>()(
         const parsed = signupSchema.safeParse({ name, email, password, location });
         if (!parsed.success) {
           set({ isLoading: false });
-          return false;
+          return { success: false, error: parsed.error.issues[0].message };
         }
 
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: parsed.data.email,
-          password: parsed.data.password,
-          options: {
-            data: { name: parsed.data.name, location: parsed.data.location },
-          },
-        });
+        // Try Supabase Auth when configured
+        if (isSupabaseConfigured) {
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: parsed.data.email,
+            password: parsed.data.password,
+            options: {
+              data: { name: parsed.data.name, location: parsed.data.location },
+            },
+          });
 
-        if (authError || !authData.user) {
+          if (authError || !authData.user) {
+            set({ isLoading: false });
+            return { success: false, error: authError?.message ?? 'Sign up failed' };
+          }
+
+          await supabase.from('profiles').insert({
+            id: authData.user.id,
+            name: parsed.data.name,
+            location: parsed.data.location,
+            avatar: '🌱',
+            krux_balance: 50,
+          });
+
+          const newUser: User = {
+            id: authData.user.id,
+            name: parsed.data.name,
+            email: parsed.data.email,
+            avatar: '🌱',
+            kruxBalance: 50,
+            greenScore: 0,
+            streak: 0,
+            lastScanDate: null,
+            totalScans: 0,
+            co2Saved: 0,
+            waterSaved: 0,
+            plasticRecycled: 0,
+            location: parsed.data.location,
+            rank: 0,
+            badges: [],
+            challengeProgress: {},
+            lastChallengeReset: null,
+            streakFreezes: 0,
+            lastSpinDate: null,
+            xp: 0,
+            level: 1,
+            referralCode: generateReferralCode(authData.user.id),
+            referralCount: 0,
+          };
+
+          set({ user: newUser, isAuthenticated: true, isLoading: false });
+          return { success: true };
+        }
+
+        // localStorage fallback (offline/demo mode)
+        const storedRaw = localStorage.getItem(LS_USERS_KEY);
+        const storedUsers: StoredUser[] = storedRaw ? JSON.parse(storedRaw) : [];
+
+        const emailExists = storedUsers.some(
+          u => u.email.toLowerCase() === parsed.data.email.toLowerCase(),
+        );
+        if (emailExists) {
           set({ isLoading: false });
-          return false;
+          return { success: false, error: 'Email already registered' };
         }
 
-        // Create profile row
-        await supabase.from('profiles').insert({
-          id: authData.user.id,
+        const id = crypto.randomUUID();
+        const pwHash = await hashPassword(parsed.data.password);
+        const newStoredUser: StoredUser = {
+          id,
           name: parsed.data.name,
+          email: parsed.data.email.toLowerCase(),
+          passwordHash: pwHash,
           location: parsed.data.location,
-          avatar: '🌱',
-          krux_balance: 50,
-        });
+          createdAt: Date.now(),
+        };
+        storedUsers.push(newStoredUser);
+        localStorage.setItem(LS_USERS_KEY, JSON.stringify(storedUsers));
 
         const newUser: User = {
-          id: authData.user.id,
+          id,
           name: parsed.data.name,
           email: parsed.data.email,
           avatar: '🌱',
@@ -517,12 +648,12 @@ export const useStore = create<AppState>()(
           lastSpinDate: null,
           xp: 0,
           level: 1,
-          referralCode: generateReferralCode(authData.user.id),
+          referralCode: generateReferralCode(id),
           referralCount: 0,
         };
 
         set({ user: newUser, isAuthenticated: true, isLoading: false });
-        return true;
+        return { success: true };
       },
 
       // Scan Actions
@@ -875,6 +1006,7 @@ export const useStore = create<AppState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         scanRecords: state.scanRecords,
+        scanMetadataHistory: state.scanMetadataHistory,
         cart: state.cart,
         orders: state.orders,
         darkMode: state.darkMode,
