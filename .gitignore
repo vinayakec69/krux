@@ -1,2 +1,23 @@
 node_modules/
 dist/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# ML model artifacts (generate with ml/export/export_tfjs.py)
+public/models/*
+!public/models/.gitkeep
+ml/models/*
+!ml/models/.gitkeep
+ml/data/raw/
+ml/data/processed/
+ml/__pycache__/
+ml/**/__pycache__/
+ml/venv/
+
+# Supabase local dev
+.branches
+.temp
+
