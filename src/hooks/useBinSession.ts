@@ -56,10 +56,11 @@ export function useBinSession(userId: string) {
 
   /** Step 1: link user to a bin and create a pending session. */
   const startHandshake = useCallback(
-    async (binId: string) => {
+    async (binId: string, userIdOverride?: string) => {
       setState({ ...INITIAL_STATE, status: 'handshaking', binId });
       try {
-        const result = await initiateHandshake(userId, binId);
+        const effectiveUserId = userIdOverride ?? userId;
+        const result = await initiateHandshake(effectiveUserId, binId);
         setState((s) => ({
           ...s,
           status: 'pending_scan',

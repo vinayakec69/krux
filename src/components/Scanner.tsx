@@ -3,6 +3,9 @@ import { Camera, Zap, AlertTriangle, CheckCircle, RotateCcw, Loader2, Shield } f
 import { useStore } from '@/store/useStore';
 import { plasticClassifier } from '@/lib/advancedML';
 import { fraudDetector } from '@/lib/advancedFraudDetection';
+import { useBinSession } from '@/hooks/useBinSession';
+import { binIdSchema } from '@/utils/validation';
+import { resolveAuthenticatedUserId } from '@/lib/auth';
 
 type PlasticType = 'PET' | 'HDPE' | 'PVC' | 'LDPE' | 'PP' | 'PS' | 'OTHER';
 
@@ -40,8 +43,14 @@ export function Scanner() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [allScores, setAllScores] = useState<Record<string, number>>({});
+  const [binId, setBinId] = useState('');
+  const [binIdError, setBinIdError] = useState<string | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   
-  const { addKrux, updateStreak } = useStore();
+  const { addKrux, updateStreak, user } = useStore();
+  const { state: binSession, startHandshake, reset: resetBinSession } = useBinSession(authUserId ?? '');
+  const isBinConnected = binSession.status === 'pending_scan';
+  const isConnectingBin = binSession.status === 'handshaking';
   
   // Cleanup camera on unmount
   useEffect(() => {
@@ -51,8 +60,53 @@ export function Scanner() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUserId = async () => {
+      const resolved = await resolveAuthenticatedUserId(user?.id ?? null);
+      if (isMounted) {
+        setAuthUserId(resolved);
+      }
+    };
+
+    void loadUserId();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  const connectBin = useCallback(async () => {
+    setBinIdError(null);
+    setError(null);
+
+    const parsedBinId = binIdSchema.safeParse(binId.trim());
+    if (!parsedBinId.success) {
+      setBinIdError(parsedBinId.error.issues[0].message);
+      return;
+    }
+
+    const resolvedUserId = authUserId ?? await resolveAuthenticatedUserId(user?.id ?? null);
+    if (!resolvedUserId) {
+      setError('Please log in again to connect your account.');
+      return;
+    }
+
+    if (resolvedUserId !== authUserId) {
+      setAuthUserId(resolvedUserId);
+    }
+
+    await startHandshake(parsedBinId.data, resolvedUserId);
+  }, [authUserId, binId, startHandshake, user?.id]);
   
   const startCamera = useCallback(async () => {
+    if (!isBinConnected) {
+      setError('Enter Bin ID and connect before opening the camera.');
+      return;
+    }
+
     setScanState('requesting');
     setError(null);
     
@@ -117,7 +171,7 @@ export function Scanner() {
       
       setScanState('idle');
     }
-  }, []);
+  }, [isBinConnected]);
   
   const captureImage = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -235,6 +289,17 @@ export function Scanner() {
     resetScanner();
     startCamera();
   };
+
+  const changeBin = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    resetScanner();
+    resetBinSession();
+    setBinId('');
+    setBinIdError(null);
+  };
   
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 pb-24">
@@ -254,6 +319,68 @@ export function Scanner() {
       
       {/* Main Content */}
       <div className="p-4">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm mb-4">
+          <h2 className="text-base font-bold text-gray-900">Bin Connection</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Enter your Bin ID and connect before starting the camera.
+          </p>
+
+          {!isBinConnected ? (
+            <div className="mt-4 space-y-3">
+              <input
+                type="text"
+                value={binId}
+                onChange={(event) => {
+                  setBinId(event.target.value);
+                  setBinIdError(null);
+                }}
+                placeholder="Enter Bin ID"
+                disabled={isConnectingBin}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 disabled:bg-gray-100 disabled:text-gray-400"
+              />
+              {binIdError && <p className="text-sm text-red-500">{binIdError}</p>}
+              {binSession.status === 'error' && binSession.error && (
+                <p className="text-sm text-red-500">{binSession.error}</p>
+              )}
+              <button
+                type="button"
+                onClick={connectBin}
+                disabled={isConnectingBin}
+                className="w-full py-3 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
+              >
+                {isConnectingBin ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  'Connect'
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="text-sm font-semibold text-green-700">Connected to Bin</p>
+              <p className="text-sm text-gray-700 mt-2">
+                <span className="font-medium">Bin ID:</span> {binSession.binId}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Type:</span> {binSession.binInfo?.binType}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Location:</span> {binSession.binInfo?.binLocation}
+              </p>
+              <button
+                type="button"
+                onClick={changeBin}
+                className="mt-3 text-sm font-medium text-green-700 hover:text-green-800"
+              >
+                Change Bin
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Camera View */}
         <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden mb-4 border border-gray-200">
           {/* Video element - always rendered but hidden when not streaming */}
