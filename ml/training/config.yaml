@@ -1,0 +1,69 @@
+# KRUX Plastic Classifier — Training Configuration
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+data:
+  train_dir: data/processed/train
+  val_dir: data/processed/val
+  test_dir: data/processed/test
+
+output:
+  checkpoint_dir: models/checkpoints
+  best_model: models/best_model.h5
+  logs_dir: models/logs
+
+# ── Model ──────────────────────────────────────────────────────────────────────
+model:
+  backbone: mobilenet_v2
+  input_size: 224
+  num_classes: 7
+  classes: [PET, HDPE, PVC, LDPE, PP, PS, OTHER]
+  dropout_1: 0.3
+  dropout_2: 0.2
+  dense_units: 128
+  freeze_base_epochs: 5          # Train only head for first N epochs
+  fine_tune_at_layer: 100        # Unfreeze from this layer index onwards
+
+# ── Training ───────────────────────────────────────────────────────────────────
+training:
+  epochs: 50
+  batch_size: 32
+  optimizer: adam
+  learning_rate: 1.0e-4
+  lr_schedule: cosine_annealing
+  early_stopping_patience: 7
+  mixed_precision: true
+  seed: 42
+  train_val_split: 0.85          # Only used if no explicit val_dir
+
+# ── Augmentation ───────────────────────────────────────────────────────────────
+augmentation:
+  rotation_limit: 30
+  horizontal_flip: true
+  vertical_flip: true
+  brightness_limit: 0.4
+  contrast_limit: 0.3
+  saturation_limit: 0.3
+  hue_limit: 0.1
+  gaussian_noise_var_limit: [0.01, 0.05]
+  gaussian_blur_limit: [3, 7]
+  random_crop_scale: [0.8, 1.0]
+  cutout_num_holes: 4
+  cutout_max_h_size: 32
+  cutout_max_w_size: 32
+  jpeg_quality_limit: [10, 50]   # Simulate compression artifacts
+  elastic_alpha: 80              # Crumple simulation
+  elastic_sigma: 9
+
+# ── Adversarial training ───────────────────────────────────────────────────────
+adversarial:
+  enabled: true
+  adv_fraction: 0.30             # 30 % of each batch is adversarial
+  fgsm_eps: 0.02
+  pgd_eps: 0.02
+  pgd_steps: 7
+  pgd_step_size: 0.007
+
+# ── Evaluation ─────────────────────────────────────────────────────────────────
+evaluation:
+  metrics: [accuracy, precision, recall, f1, confusion_matrix]
+  adv_eval_eps: [0.01, 0.02, 0.03]
