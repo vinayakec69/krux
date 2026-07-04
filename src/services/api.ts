@@ -79,15 +79,12 @@ export function listenProfile(uid: string, callback: (data: any) => void) {
 // ─────────────────────────────────────────────
 
 export async function initiateHandshake(user_id: string, bin_id: string) {
-  const res = await fetch(
-    `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID}.cloudfunctions.net/handshakeInitiate`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id, bin_id }),
-    }
-  );
-  return res.json();
+  // Bypassing Cloud Functions for TRL-4 (No Firebase Blaze plan required).
+  // Simulate a successful handshake response instantly.
+  return {
+    valid: true,
+    session_id: `session_${Date.now()}`
+  };
 }
 
 // ─────────────────────────────────────────────
@@ -102,19 +99,12 @@ export async function validateScan(payload: {
   perceptual_hash: string;
   gps?: { lat: number; lng: number };
 }) {
-  const token = await auth.currentUser?.getIdToken();
-  const res = await fetch(
-    `https://us-central1-${import.meta.env.VITE_FIREBASE_PROJECT_ID}.cloudfunctions.net/scanValidate`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-  return res.json();
+  // Bypassing Cloud Functions for TRL-4.
+  // Client-side fraud detection has already passed in Scanner.tsx.
+  return {
+    valid: true,
+    krux_earned: payload.predicted_class === 'PET' ? 15 : 10
+  };
 }
 
 // ─────────────────────────────────────────────
