@@ -85,13 +85,13 @@ const PLASTIC_PROFILES = {
   },
   PP: {
     // Yogurt containers, bottle caps - often colored, matte
-    transparency: [0.0, 0.2],
-    brightness: [0.4, 0.8],
-    saturation: [0.2, 0.7],
-    smoothness: [0.5, 0.8],
-    colorRange: { r: [50, 255], g: [50, 255], b: [50, 255] },
-    edgeDensity: [0.2, 0.5],
-    weight: 1.0,
+    transparency: [0.0, 0.15],
+    brightness: [0.4, 0.7],
+    saturation: [0.3, 0.9],
+    smoothness: [0.4, 0.7],
+    colorRange: { r: [100, 255], g: [100, 255], b: [100, 255] },
+    edgeDensity: [0.2, 0.4],
+    weight: 0.75, // Reduced weight to prevent "PP bias" on ambiguous images
   },
   PS: {
     // Styrofoam, disposable cups - very white/light, foam texture
