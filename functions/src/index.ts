@@ -160,7 +160,20 @@ export const binDropEvent = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    const { session_id, bin_id, measured_weight_grams } = req.body;
+    let { session_id, bin_id, measured_weight_grams } = req.body;
+
+    // If ESP32 only sends bin_id, look up the active session_id automatically
+    if (!session_id && bin_id) {
+      const activeSessionSnap = await rtdb.ref(`active_sessions/${bin_id}`).once('value');
+      if (activeSessionSnap.exists()) {
+        session_id = activeSessionSnap.val().session_id;
+      }
+    }
+
+    if (!session_id) {
+      res.status(400).json({ error: 'No active session found for this bin' });
+      return;
+    }
 
     const sessionRef = db.collection('scan_sessions').doc(session_id);
     const sessionSnap = await sessionRef.get();
@@ -172,19 +185,6 @@ export const binDropEvent = functions.https.onRequest(async (req, res) => {
 
     const session = sessionSnap.data()!;
     
-    // Validate weight against predicted class (Example logic)
-    let weightValid = true;
-    if (session.predicted_class === 'PET_BOTTLE' && (measured_weight_grams < 5 || measured_weight_grams > 60)) {
-      weightValid = false;
-    }
-
-    if (!weightValid) {
-      await sessionRef.update({ status: 'rejected_weight_mismatch', actual_weight: measured_weight_grams });
-      await rtdb.ref(`drop_events/${session_id}`).update({ status: 'failed', reason: 'weight_mismatch' });
-      res.json({ success: false, reason: 'weight_mismatch' });
-      return;
-    }
-
     // Success! Update Escrow
     await sessionRef.update({
       status: 'completed',

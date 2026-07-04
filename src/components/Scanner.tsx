@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, Zap, AlertTriangle, CheckCircle, RotateCcw, Loader2, Shield } from 'lucide-react';
+import { Camera, Zap, AlertTriangle, CheckCircle, RotateCcw, Loader2, Shield, QrCode, Trash2, ArrowRight } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { plasticClassifier } from '@/lib/advancedML';
 import { fraudDetector } from '@/lib/advancedFraudDetection';
-
-type PlasticType = 'PET' | 'HDPE' | 'PVC' | 'LDPE' | 'PP' | 'PS' | 'OTHER';
+import { initiateHandshake, validateScan, listenForDropConfirmation } from '@/services/api';
+import type { PlasticType } from '@/lib/plasticClassificationService';
 
 const PLASTIC_INFO: Record<PlasticType, { name: string; examples: string; color: string; coins: number }> = {
   PET: { name: 'PET (Polyethylene Terephthalate)', examples: 'Water bottles, soft drink bottles', color: '#22c55e', coins: 15 },
@@ -15,6 +15,18 @@ const PLASTIC_INFO: Record<PlasticType, { name: string; examples: string; color:
   PS: { name: 'PS (Polystyrene)', examples: 'Foam cups, packing peanuts', color: '#06b6d4', coins: 7 },
   OTHER: { name: 'Other/Mixed Plastics', examples: 'Multi-layer packaging', color: '#6b7280', coins: 5 },
 };
+
+type ScanState = 
+  | 'idle' 
+  | 'requesting' 
+  | 'streaming_bin' // Phase 1: Scan Bin QR
+  | 'handshake'     // Connecting to Bin
+  | 'streaming_plastic' // Phase 2: Scan Plastic Item
+  | 'captured' 
+  | 'processing' 
+  | 'waiting_for_drop' // Escrow Phase: Waiting for hardware confirmation
+  | 'result' 
+  | 'fraud';
 
 interface ScanResult {
   type: PlasticType;
@@ -33,7 +45,7 @@ export function Scanner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
-  const [scanState, setScanState] = useState<'idle' | 'requesting' | 'streaming' | 'captured' | 'processing' | 'result' | 'fraud'>('idle');
+  const [scanState, setScanState] = useState<ScanState>('idle');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [fraudResult, setFraudResult] = useState<FraudResult | null>(null);
@@ -41,26 +53,45 @@ export function Scanner() {
   const [progress, setProgress] = useState(0);
   const [allScores, setAllScores] = useState<Record<string, number>>({});
   
-  const { addKrux, updateStreak } = useStore();
+  // IoT Escrow State
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentBinId, setCurrentBinId] = useState<string | null>(null);
+  const [dropTimeout, setDropTimeout] = useState<number>(30); // 30 second countdown for user to drop
+
+  const { addKrux, updateStreak, user } = useStore();
   
   // Cleanup camera on unmount
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      stopCamera();
     };
   }, []);
+
+  // Drop countdown timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (scanState === 'waiting_for_drop' && dropTimeout > 0) {
+      timer = setInterval(() => setDropTimeout(prev => prev - 1), 1000);
+    } else if (scanState === 'waiting_for_drop' && dropTimeout === 0) {
+      setError('Time expired. Please try scanning again.');
+      setScanState('idle');
+    }
+    return () => clearInterval(timer);
+  }, [scanState, dropTimeout]);
   
-  const startCamera = useCallback(async () => {
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const startCamera = useCallback(async (mode: 'bin' | 'plastic') => {
     setScanState('requesting');
     setError(null);
     
     try {
-      // Stop any existing stream
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      stopCamera();
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -83,43 +114,48 @@ export function Scanner() {
           }
           
           const video = videoRef.current;
-          
           video.onloadedmetadata = () => {
-            video.play()
-              .then(() => resolve())
-              .catch(reject);
+            video.play().then(() => resolve()).catch(reject);
           };
-          
           video.onerror = () => reject(new Error('Video error'));
-          
-          // Timeout after 10 seconds
           setTimeout(() => reject(new Error('Camera timeout')), 10000);
         });
         
-        setScanState('streaming');
+        setScanState(mode === 'bin' ? 'streaming_bin' : 'streaming_plastic');
       }
     } catch (err) {
       console.error('Camera error:', err);
-      
-      if (err instanceof Error) {
-        if (err.name === 'NotAllowedError') {
-          setError('Camera permission denied. Please allow camera access.');
-        } else if (err.name === 'NotFoundError') {
-          setError('No camera found on this device.');
-        } else if (err.name === 'NotReadableError') {
-          setError('Camera is in use by another app.');
-        } else {
-          setError(`Camera error: ${err.message}`);
-        }
-      } else {
-        setError('Failed to access camera');
-      }
-      
+      setError('Failed to access camera. Please allow permissions.');
       setScanState('idle');
     }
   }, []);
   
-  const captureImage = useCallback(() => {
+  // STEP 1: Scan Bin QR -> Initiate Handshake
+  const captureBinQR = async () => {
+    if (!user) {
+      setError('Please login first to scan bins.');
+      return;
+    }
+
+    setScanState('handshake');
+    // In a real app, this would decode a QR code. We mock it for TRL-4:
+    const mockBinId = 'KRUX_BIN_001'; 
+    setCurrentBinId(mockBinId);
+
+    try {
+      const response = await initiateHandshake(user.uid, mockBinId);
+      setCurrentSessionId(response.session_id);
+      
+      // Proceed to Step 2: Scan Plastic
+      startCamera('plastic');
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect to bin. Is it online?');
+      setScanState('idle');
+    }
+  };
+
+  // STEP 2: Capture Plastic Image
+  const capturePlastic = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
     
     const video = videoRef.current;
@@ -136,30 +172,29 @@ export function Scanner() {
     
     setCapturedImage(imageData);
     setScanState('captured');
-    
-    // Stop camera
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
+    stopCamera();
     
     // Start processing
     processImage(imageData);
-  }, []);
+  }, [currentSessionId]);
   
   const processImage = async (imageData: string) => {
+    if (!currentSessionId) {
+      setError('No active bin session. Start over.');
+      setScanState('idle');
+      return;
+    }
+
     setScanState('processing');
     setProgress(0);
     
-    // Non-linear progress simulation (Secret #4)
+    // Non-linear progress simulation
     const progressSteps = [
       { target: 20, delay: 100 },
       { target: 45, delay: 150 },
       { target: 70, delay: 200 },
       { target: 82, delay: 300 },
-      { target: 88, delay: 400 },
-      { target: 92, delay: 500 },
-      { target: 95, delay: 600 },
+      { target: 95, delay: 500 },
     ];
     
     let stepIndex = 0;
@@ -171,69 +206,80 @@ export function Scanner() {
     }, 200);
     
     try {
-      // Run fraud detection and ML classification in parallel
-      const [fraudCheck, classification] = await Promise.all([
-        fraudDetector.checkForFraud(imageData),
-        plasticClassifier.classify(imageData)
-      ]);
+      // 1. Run local ML classification
+      const classification = await plasticClassifier.classify(imageData);
+      const plasticType = classification.type as PlasticType;
+      const confidence = classification.confidence;
+      const allScoresRes = classification.allScores;
       
       clearInterval(progressInterval);
       setProgress(100);
       
-      // Small delay for progress to complete
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      if (fraudCheck.isFraud) {
-        setFraudResult({
-          isFraud: true,
-          confidence: fraudCheck.confidence,
-          reason: fraudCheck.reason
-        });
-        setScanState('fraud');
-        return;
-      }
-      
-      // Get plastic info and calculate coins
-      const plasticType = classification.type;
-      const baseCoins = PLASTIC_INFO[plasticType].coins;
-      const confidenceMultiplier = 0.5 + (classification.confidence / 100) * 0.5;
-      const earnedCoins = Math.round(baseCoins * confidenceMultiplier);
-      
-      setScanResult({
-        type: plasticType,
-        confidence: classification.confidence,
-        coins: earnedCoins
+      // 2. Call Cloud Function to validate scan and run fraud checks
+      // In production, we'd pass perceptual hash here. 
+      await validateScan({
+        session_id: currentSessionId,
+        predicted_class: plasticType,
+        confidence: confidence,
+        image_hash: 'mock_hash_123', 
+        perceptual_hash: 'mock_phash_123'
+      });
+
+      // 3. Scan is valid! Now we wait for the physical bin drop
+      setDropTimeout(30);
+      setScanState('waiting_for_drop');
+
+      // 4. Start RTDB listener for the hardware event
+      const unsubscribe = listenForDropConfirmation(currentSessionId, (event) => {
+        if (event.status === 'confirmed') {
+          // Hardware Drop Successful!
+          setScanResult({
+            type: plasticType,
+            confidence: confidence,
+            coins: event.krux_earned || PLASTIC_INFO[plasticType].coins
+          });
+          setAllScores(allScoresRes);
+          
+          addKrux(event.krux_earned || PLASTIC_INFO[plasticType].coins);
+          updateStreak();
+          setScanState('result');
+          unsubscribe();
+        } else if (event.status === 'failed') {
+          // Fraud or Mismatch detected by hardware
+          setError(`Hardware rejected drop: ${event.reason}`);
+          setScanState('idle');
+          unsubscribe();
+        }
       });
       
-      setAllScores(classification.allScores);
-      
-      // Optimistic UI - add coins immediately (Secret #5)
-      addKrux(earnedCoins);
-      updateStreak();
-      
-      setScanState('result');
-      
-    } catch (err) {
+    } catch (err: any) {
       clearInterval(progressInterval);
-      console.error('Processing error:', err);
-      setError('Failed to analyze image. Please try again.');
-      setScanState('captured');
+      
+      if (err.message && err.message.toLowerCase().includes('duplicate')) {
+        setFraudResult({
+          isFraud: true,
+          confidence: 99,
+          reason: 'Duplicate image detected by KRUX Anti-Fraud Engine.'
+        });
+        setScanState('fraud');
+      } else {
+        setError(err.message || 'Failed to validate scan. Please try again.');
+        setScanState('idle');
+      }
     }
   };
   
   const resetScanner = () => {
+    stopCamera();
     setCapturedImage(null);
     setScanResult(null);
     setFraudResult(null);
     setError(null);
     setProgress(0);
     setAllScores({});
+    setCurrentSessionId(null);
+    setCurrentBinId(null);
     setScanState('idle');
-  };
-  
-  const retryCamera = () => {
-    resetScanner();
-    startCamera();
   };
   
   return (
@@ -241,122 +287,131 @@ export function Scanner() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">Scan Plastic</h1>
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <Shield className="w-4 h-4" />
-            <span>{fraudDetector.getHistoryCount()} scans tracked</span>
-          </div>
+          <h1 className="text-xl font-bold text-gray-900">KRUX Scanner</h1>
+          {currentBinId && (
+            <div className="flex items-center gap-2 text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              Connected: {currentBinId}
+            </div>
+          )}
         </div>
       </div>
       
-      {/* Hidden canvas for capture */}
       <canvas ref={canvasRef} className="hidden" />
       
-      {/* Main Content */}
       <div className="p-4">
-        {/* Camera View */}
         <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden mb-4 border border-gray-200">
-          {/* Video element - always rendered but hidden when not streaming */}
+          
+          {/* Video Stream */}
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 w-full h-full object-cover ${scanState === 'streaming' ? 'block' : 'hidden'}`}
+            className={`absolute inset-0 w-full h-full object-cover ${(scanState === 'streaming_bin' || scanState === 'streaming_plastic') ? 'block' : 'hidden'}`}
           />
           
-          {/* Captured image preview */}
-          {capturedImage && scanState !== 'streaming' && scanState !== 'idle' && scanState !== 'requesting' && (
-            <img
-              src={capturedImage}
-              alt="Captured"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+          {capturedImage && scanState !== 'streaming_bin' && scanState !== 'streaming_plastic' && scanState !== 'idle' && scanState !== 'requesting' && (
+            <img src={capturedImage} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />
           )}
           
-          {/* Idle State */}
+          {/* 1. IDLE STATE */}
           {scanState === 'idle' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
               <div
-                onClick={startCamera}
+                onClick={() => startCamera('bin')}
                 className="w-24 h-24 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:bg-green-600 transition-all hover:scale-105 shadow-md shadow-green-200"
               >
-                <Camera className="w-10 h-10 text-white" />
+                <QrCode className="w-10 h-10 text-white" />
               </div>
-              <p className="mt-6 text-gray-600 text-lg">Tap to Open Camera</p>
-              <p className="mt-2 text-gray-400 text-sm">Point at plastic waste to earn KRUX</p>
+              <p className="mt-6 text-gray-600 text-lg font-medium">Step 1: Scan KRUX Bin</p>
+              <p className="mt-2 text-gray-400 text-sm">Point at the QR code on any smart bin to connect</p>
             </div>
           )}
           
-          {/* Requesting Permission */}
-          {scanState === 'requesting' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {/* Loading States */}
+          {(scanState === 'requesting' || scanState === 'handshake') && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90">
               <Loader2 className="w-12 h-12 text-green-500 animate-spin" />
-              <p className="mt-4 text-gray-500">Requesting camera access...</p>
+              <p className="mt-4 text-gray-600 font-medium">
+                {scanState === 'requesting' ? 'Accessing Camera...' : 'Connecting securely to Bin...'}
+              </p>
             </div>
           )}
           
-          {/* Streaming - Scan Overlay */}
-          {scanState === 'streaming' && (
+          {/* 2. STREAMING BIN (MOCK QR SCANNER) */}
+          {scanState === 'streaming_bin' && (
             <>
-              {/* Scanning frame */}
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-8 border-2 border-green-500/70 rounded-lg">
-                  {/* Corner accents */}
-                  <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-4 border-l-4 border-green-500 rounded-tl-lg" />
-                  <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-4 border-r-4 border-green-500 rounded-tr-lg" />
-                  <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-4 border-l-4 border-green-500 rounded-bl-lg" />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-4 border-r-4 border-green-500 rounded-br-lg" />
-                </div>
-                
-                {/* Animated scan line */}
-                <div className="absolute left-8 right-8 h-0.5 bg-gradient-to-r from-transparent via-green-500 to-transparent animate-pulse"
-                     style={{ top: '50%', animation: 'scan 2s ease-in-out infinite' }} />
+                <div className="absolute inset-12 border-2 border-green-500/70 rounded-3xl" />
+                <div className="absolute left-12 right-12 h-0.5 bg-green-500 animate-pulse" style={{ top: '50%', animation: 'scan 2s ease-in-out infinite' }} />
               </div>
-              
-              {/* Capture Button */}
               <div className="absolute bottom-6 left-0 right-0 flex justify-center">
                 <button
-                  onClick={captureImage}
-                  className="flex items-center gap-2 px-8 py-4 bg-green-500 text-white font-bold rounded-full shadow-md shadow-green-200 hover:bg-green-600 transition-all duration-300"
+                  onClick={captureBinQR}
+                  className="flex items-center gap-2 px-8 py-4 bg-green-500 text-white font-bold rounded-full shadow-md"
                 >
-                  <Camera className="w-5 h-5" />
-                  CAPTURE & ANALYZE
+                  <QrCode className="w-5 h-5" />
+                  MOCK SCAN QR
                 </button>
               </div>
-              
-              {/* Hint */}
               <div className="absolute top-6 left-0 right-0 text-center">
-                <p className="text-white text-sm bg-green-500/80 inline-block px-4 py-2 rounded-full">
-                  Position plastic inside the frame
-                </p>
+                <p className="text-white text-sm bg-black/60 inline-block px-4 py-2 rounded-full backdrop-blur-sm">Point at Bin QR Code</p>
+              </div>
+            </>
+          )}
+
+          {/* 3. STREAMING PLASTIC */}
+          {scanState === 'streaming_plastic' && (
+            <>
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-8 border-2 border-green-500/70 rounded-lg" />
+              </div>
+              <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+                <button
+                  onClick={capturePlastic}
+                  className="flex items-center gap-2 px-8 py-4 bg-green-500 text-white font-bold rounded-full shadow-md"
+                >
+                  <Camera className="w-5 h-5" />
+                  ANALYZE PLASTIC
+                </button>
+              </div>
+              <div className="absolute top-6 left-0 right-0 text-center">
+                <p className="text-white text-sm bg-green-500/80 inline-block px-4 py-2 rounded-full">Scan your plastic item</p>
               </div>
             </>
           )}
           
-          {/* Processing */}
+          {/* 4. PROCESSING (ML & FRAUD CLOUD FUNCTION) */}
           {scanState === 'processing' && (
             <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-6">
-              <div className="w-full max-w-xs">
-                <div className="flex items-center gap-3 mb-4">
-                  <Loader2 className="w-6 h-6 text-green-500 animate-spin" />
-                  <span className="text-green-700 font-medium">Analyzing plastic...</span>
-                </div>
-                
-                {/* Progress bar with non-linear animation */}
+              <div className="w-full max-w-xs text-center">
+                <Loader2 className="w-8 h-8 text-green-500 animate-spin mx-auto mb-4" />
+                <p className="text-green-700 font-bold mb-2">Analyzing & Validating...</p>
                 <div className="h-3 bg-green-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-green-500 transition-all duration-300 ease-out"
-                    style={{ width: `${progress}%` }}
-                  />
+                  <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${progress}%` }} />
                 </div>
-                
-                <p className="text-gray-500 text-sm mt-3 text-center">
-                  {progress < 30 && 'Extracting image features...'}
-                  {progress >= 30 && progress < 60 && 'Running ML classification...'}
-                  {progress >= 60 && progress < 85 && 'Checking for fraud...'}
-                  {progress >= 85 && 'Finalizing results...'}
-                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 5. WAITING FOR PHYSICAL DROP (IoT ESCROW) */}
+          {scanState === 'waiting_for_drop' && (
+            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
+              <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6 animate-pulse">
+                <Trash2 className="w-10 h-10 text-green-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Scan Approved!</h2>
+              <p className="text-gray-300 mb-6 text-lg">Please drop the item into the bin now.</p>
+              
+              <div className="bg-white/10 rounded-2xl p-4 border border-white/20 w-full max-w-xs">
+                <p className="text-gray-400 text-sm mb-2">Awaiting hardware confirmation...</p>
+                <div className="flex justify-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <p className="text-white font-mono font-bold text-xl">{dropTimeout}s</p>
               </div>
             </div>
           )}
@@ -364,182 +419,77 @@ export function Scanner() {
           {/* Fraud Detected */}
           {scanState === 'fraud' && fraudResult && (
             <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4">
-                <AlertTriangle className="w-10 h-10 text-red-500" />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-red-500 mb-2">Duplicate Detected!</h2>
-              <p className="text-gray-500 mb-4">{fraudResult.reason}</p>
-              
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 max-w-sm">
-                <p className="text-red-500 text-sm">
-                  Our fraud detection system ({fraudResult.confidence}% match) has identified this item as previously scanned.
-                  Please scan a different plastic item.
-                </p>
-              </div>
-              
-              <button
-                onClick={retryCamera}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-300"
-              >
-                <RotateCcw className="w-5 h-5" />
-                Try Another Item
-              </button>
+              <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+              <h2 className="text-2xl font-bold text-red-500 mb-2">Scan Rejected</h2>
+              <p className="text-gray-600 mb-6">{fraudResult.reason}</p>
+              <button onClick={resetScanner} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-full font-bold">Start Over</button>
             </div>
           )}
           
           {/* Error */}
           {error && scanState === 'idle' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-white/90">
               <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-              <p className="text-red-500 mb-4">{error}</p>
-              <button
-                onClick={startCamera}
-                className="px-6 py-3 bg-green-500 text-white font-bold rounded-full"
-              >
-                Try Again
-              </button>
+              <p className="text-red-500 font-medium mb-6">{error}</p>
+              <button onClick={resetScanner} className="px-6 py-3 bg-green-500 text-white font-bold rounded-full">Reset Scanner</button>
             </div>
           )}
         </div>
         
-        {/* Result Card */}
+        {/* 6. REWARD RESULT CARD */}
         {scanState === 'result' && scanResult && (
           <div className="space-y-4 animate-fade-in">
-            {/* Success Card */}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-200">
+                  <CheckCircle className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-green-700">Plastic Identified!</h3>
-                  <p className="text-gray-500 text-sm">{scanResult.confidence}% confidence</p>
+                  <h3 className="text-xl font-black text-green-800">Drop Confirmed!</h3>
+                  <p className="text-green-600 font-medium text-sm">IoT Bin synced successfully</p>
                 </div>
               </div>
               
-              <div className="bg-white rounded-xl p-4 mb-4 border border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: PLASTIC_INFO[scanResult.type].color }}
-                  />
+              <div className="flex items-center justify-between p-5 bg-white border border-green-100 rounded-2xl shadow-sm mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="bg-green-100 p-3 rounded-xl">
+                    <Zap className="w-8 h-8 text-green-500" />
+                  </div>
                   <div>
-                    <p className="font-bold text-gray-900">{PLASTIC_INFO[scanResult.type].name}</p>
-                    <p className="text-gray-500 text-sm">{PLASTIC_INFO[scanResult.type].examples}</p>
+                    <p className="text-green-600 font-black text-3xl">+{scanResult.coins}</p>
+                    <p className="text-gray-500 font-bold text-sm">KRUX EARNED</p>
                   </div>
                 </div>
               </div>
-              
-              {/* Coins Earned */}
-              <div className="flex items-center justify-between p-4 bg-white border border-green-200 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <Zap className="w-8 h-8 text-green-500" />
-                  <div>
-                    <p className="text-green-600 font-bold text-2xl">+{scanResult.coins}</p>
-                    <p className="text-gray-500 text-sm">KRUX earned!</p>
-                  </div>
-                </div>
-                <div className="text-right text-gray-400 text-sm">
-                  <p>Base: {PLASTIC_INFO[scanResult.type].coins}</p>
-                  <p>Confidence bonus: {Math.round((scanResult.confidence / 100) * 50)}%</p>
-                </div>
-              </div>
+
+              <button
+                onClick={resetScanner}
+                className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-green-200"
+              >
+                Scan Next Item
+                <ArrowRight className="w-5 h-5" />
+              </button>
             </div>
-            
-            {/* ML Classification Breakdown */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-              <h4 className="text-lg font-bold text-gray-900 mb-4">Classification Scores</h4>
-              <div className="space-y-3">
-                {Object.entries(allScores)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([type, score]) => (
-                    <div key={type} className="flex items-center gap-3">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: PLASTIC_INFO[type as PlasticType]?.color || '#9CA3AF' }}
-                      />
-                      <span className="text-gray-500 w-16 text-sm">{type}</span>
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${score * 100}%`,
-                            backgroundColor: PLASTIC_INFO[type as PlasticType]?.color || '#9CA3AF'
-                          }}
-                        />
-                      </div>
-                      <span className="text-gray-400 text-sm w-12 text-right">
-                        {(score * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-            
-            {/* Scan Another Button */}
-            <button
-              onClick={retryCamera}
-              className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              <Camera className="w-5 h-5" />
-              Scan Another Item
-            </button>
           </div>
         )}
         
         {/* Info Section */}
         {scanState === 'idle' && (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-900">How It Works</h3>
-            
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
-                  <Camera className="w-5 h-5 text-green-600" />
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">The KRUX Pipeline</h3>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
+                  <p className="text-sm text-gray-600"><strong className="text-gray-900">Handshake:</strong> Scan the QR code on the bin to connect securely.</p>
                 </div>
-                <p className="text-gray-500 text-xs">Point camera at plastic</p>
-              </div>
-              
-              <div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
-                  <Zap className="w-5 h-5 text-green-600" />
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
+                  <p className="text-sm text-gray-600"><strong className="text-gray-900">Scan Plastic:</strong> Our ML model identifies the plastic type and prevents fraud.</p>
                 </div>
-                <p className="text-gray-500 text-xs">ML identifies type</p>
-              </div>
-              
-              <div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-green-600 font-bold">K</span>
-                </div>
-                <p className="text-gray-500 text-xs">Earn KRUX coins</p>
-              </div>
-            </div>
-            
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <h4 className="font-bold text-gray-900 mb-3">KRUX Rewards by Plastic Type</h4>
-              <div className="space-y-2">
-                {Object.entries(PLASTIC_INFO).map(([type, info]) => (
-                  <div key={type} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: info.color }} />
-                      <span className="text-gray-500 text-sm">{type}</span>
-                    </div>
-                    <span className="text-green-600 font-medium">{info.coins} KRUX</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold text-red-600 mb-1">Fraud Protection Active</h4>
-                  <p className="text-gray-500 text-sm">
-                    Our advanced system uses image fingerprinting, GPS, and device tracking to prevent duplicate scans.
-                    Each plastic item can only be scanned once.
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">3</div>
+                  <p className="text-sm text-gray-600"><strong className="text-gray-900">Physical Drop:</strong> Drop the item. The bin's IR sensor confirms it and releases your KRUX!</p>
                 </div>
               </div>
             </div>
@@ -547,21 +497,16 @@ export function Scanner() {
         )}
       </div>
       
-      {/* CSS for scan animation */}
       <style>{`
         @keyframes scan {
-          0%, 100% { transform: translateY(-100px); opacity: 0.3; }
-          50% { transform: translateY(100px); opacity: 1; }
+          0%, 100% { transform: translateY(-80px); opacity: 0.3; }
+          50% { transform: translateY(80px); opacity: 1; }
         }
-        
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
       `}</style>
     </div>
   );
