@@ -13,12 +13,12 @@
 // ═══════════════════════════════════════════════════════════════════════
 // WIFI & FIREBASE CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════
-const char* ssid = "YOUR_WIFI_SSID";           // <-- CHANGE THIS
-const char* password = "YOUR_WIFI_PASSWORD";   // <-- CHANGE THIS
+const char* ssid = "krish";           // <-- CHANGE THIS
+const char* password = "okkrishfine";   // <-- CHANGE THIS
 const char* binId = "KRUX_BIN_001";            // The ID of this specific bin
 const char* apiKey = "KrUx2025SmartSeg-BinKey-X9mZ"; 
-// Replace the URL below with the URL of your deployed Firebase Cloud Function
-const char* cloudFunctionURL = "https://us-central1-krux-base.cloudfunctions.net/binDropEvent"; 
+// Firebase Realtime Database URL for this specific bin
+const char* firebaseRTDB_URL = "https://krux-ee1df-default-rtdb.firebaseio.com/drop_events/KRUX_BIN_001.json"; 
 
 // ═══════════════════════════════════════════════════════════════════════
 // PIN DEFINITIONS
@@ -188,18 +188,17 @@ void loop() {
       // We only notify the app if it's an actual plastic drop (not returning home)
       if (plastic_type != 0 && WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
-        http.begin(cloudFunctionURL);
+        http.begin(firebaseRTDB_URL);
         http.addHeader("Content-Type", "application/json");
-        http.addHeader("x-api-key", apiKey);
 
-        // Send bin ID. Cloud function will automatically lookup active session
-        String jsonPayload = "{\"bin_id\": \"" + String(binId) + "\"}";
+        // Send a direct status update to the RTDB (bypass Cloud Functions)
+        String jsonPayload = "{\"status\": \"confirmed\", \"timestamp\": { \".sv\": \"timestamp\" }}";
         
-        Serial.println("\n[IoT] Sending Drop Event to KRUX App...");
-        int httpResponseCode = http.POST(jsonPayload);
+        Serial.println("\n[IoT] Sending Drop Event to KRUX App via RTDB...");
+        int httpResponseCode = http.PUT(jsonPayload);
         
         if (httpResponseCode > 0) {
-          Serial.print("[IoT] App Response Code: ");
+          Serial.print("[IoT] Firebase Response Code: ");
           Serial.println(httpResponseCode);
         } else {
           Serial.print("[IoT] Error sending request: ");

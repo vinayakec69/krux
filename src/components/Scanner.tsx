@@ -230,7 +230,7 @@ export function Scanner() {
       setScanState('waiting_for_drop');
 
       // 4. Start RTDB listener for the hardware event
-      const unsubscribe = listenForDropConfirmation(currentSessionId, (event) => {
+      const unsubscribe = listenForDropConfirmation(currentBinId || 'unknown_bin', (event) => {
         if (event.status === 'confirmed') {
           // Hardware Drop Successful!
           setScanResult({
