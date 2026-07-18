@@ -37,6 +37,20 @@ Our vision is a circular economy where recycling is not just easy, but financial
 
 KRUX operates on a two-part architecture working in perfect harmony:
 
+```mermaid
+graph TD;
+    User[📱 User Web App] -->|1. Scans Bin QR| Handshake[🤝 Secure Handshake]
+    Handshake -->|2. In-Browser ML| Classify[📸 Classify Plastic Type]
+    Classify -->|3. Waits for Drop| DB[(Firebase RTDB)]
+    
+    Bin[🤖 Smart Bin ESP32] -->|4. Detects Plastic| IR[🔌 IR Sensor]
+    IR -->|5. Sorts Plastic| Servo[⚙️ Servo Motor]
+    Servo -->|6. Confirms Drop| DB
+    
+    DB -->|7. Validates Transaction| Coins[💰 Mint KRUX Coins]
+    Coins --> User
+```
+
 ### 1. The Physical Smart Bin (Hardware)
 Built with an **ESP32 microcontroller**, a Servo motor, and an IR obstacle sensor. 
 - The bin acts autonomously, detecting when an item is dropped.
