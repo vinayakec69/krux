@@ -22,6 +22,35 @@ KRUX is a fully integrated hardware and software solution to combat the global p
 
 Our vision is a circular economy where recycling is not just easy, but financially rewarding.
 
+### 👤 Use Case Flow
+
+```mermaid
+flowchart LR
+    %% Actors
+    User((👦 Eco-User))
+    Bin((🤖 Smart Bin))
+    
+    %% Use Cases
+    subgraph KRUX Platform
+        ScanQR(1. Scan Bin QR Code)
+        Classify(2. Classify Plastic via ML)
+        Drop(3. Drop Plastic into Bin)
+        Earn(4. Earn KRUX Coins)
+        Redeem(5. Redeem in Marketplace)
+    end
+    
+    %% Relationships
+    User --> ScanQR
+    User --> Classify
+    User --> Drop
+    User --> Earn
+    User --> Redeem
+    
+    Drop -.-> Bin
+    Bin -->|Autonomously Sorts| Bin
+    Bin -->|Database Sync| Earn
+```
+
 ## ✨ Features
 
 - 🧠 **On-Device Machine Learning:** Instant plastic classification (PET, HDPE, PVC, etc.) using computer vision directly in the browser.
