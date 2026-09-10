@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow-models/mobilenet": "^2.1.1",
     "@tensorflow/tfjs": "^4.22.0",
     "@types/crypto-js": "^4.2.2",
     "clsx": "2.1.1",
