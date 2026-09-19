@@ -1,0 +1,1 @@
+npm run build; npx cap sync android; $env:JAVA_HOME="E:\scratch\jdk21\jdk-21.0.4+7"; cd android; ./gradlew assembleDebug; cd ..; cp android/app/build/outputs/apk/debug/app-debug.apk E:\krux-main\KRUX-app.apk

@@ -11,7 +11,7 @@ import {
   query, where, orderBy, limit, getDocs,
   onSnapshot, increment, serverTimestamp, addDoc
 } from 'firebase/firestore';
-import { ref, onValue, off } from 'firebase/database';
+import { ref, onValue, off, set } from 'firebase/database';
 
 // ─────────────────────────────────────────────
 // AUTH
@@ -79,12 +79,36 @@ export function listenProfile(uid: string, callback: (data: any) => void) {
 // ─────────────────────────────────────────────
 
 export async function initiateHandshake(user_id: string, bin_id: string) {
-  // Bypassing Cloud Functions for TRL-4 (No Firebase Blaze plan required).
-  // Simulate a successful handshake response instantly.
-  return {
-    valid: true,
-    session_id: `session_${Date.now()}`
-  };
+  const sessionId = `session_${Date.now()}`;
+  const binRef = ref(rtdb, `active_sessions/${bin_id}`);
+
+  // 1. Write the connection request to the DB
+  await set(binRef, {
+    status: 'requesting_connection', // Bin will look for this
+    user_id: user_id,
+    timestamp: Date.now()
+  });
+
+  // 2. Wait for the ESP32 to physically acknowledge the connection (it will change status to 'connected')
+  return new Promise<any>((resolve, reject) => {
+    // Timeout after 15 seconds if the bin is turned off
+    const timeout = setTimeout(() => {
+      off(binRef);
+      reject(new Error("Bin didn't respond. Is it turned on and connected to Wi-Fi?"));
+    }, 15000);
+
+    onValue(binRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.status === 'connected') {
+        clearTimeout(timeout);
+        off(binRef); // Stop listening
+        resolve({
+          valid: true,
+          session_id: sessionId
+        });
+      }
+    });
+  });
 }
 
 // ─────────────────────────────────────────────

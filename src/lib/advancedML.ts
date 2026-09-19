@@ -20,7 +20,7 @@ export class PlasticClassifier {
       try {
         // Load the ONNX model from the public directory
         ort.env.wasm.numThreads = 1; // Prevent WebAssembly threading issues
-        ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
+        ort.env.wasm.simd = false; // Disable SIMD to prevent SharedArrayBuffer/JSEP MJS module issues on Android
         
         this.session = await ort.InferenceSession.create('/model/best.onnx', {
           executionProviders: ['wasm']

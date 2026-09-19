@@ -3,6 +3,7 @@ import { Camera, Zap, AlertTriangle, CheckCircle, RotateCcw, Loader2, Shield, Qr
 import { useStore } from '@/store/useStore';
 import { plasticClassifier } from '@/lib/advancedML';
 import { fraudDetector } from '@/lib/advancedFraudDetection';
+import { generateScanMetadata } from '@/utils/fraudDetection';
 import { initiateHandshake, validateScan, listenForDropConfirmation } from '@/services/api';
 import type { PlasticType } from '@/lib/plasticClassificationService';
 
@@ -40,7 +41,7 @@ interface FraudResult {
   reason: string;
 }
 
-export function Scanner() {
+export const Scanner = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -58,7 +59,7 @@ export function Scanner() {
   const [currentBinId, setCurrentBinId] = useState<string | null>(null);
   const [dropTimeout, setDropTimeout] = useState<number>(30); // 30 second countdown for user to drop
 
-  const { addKrux, updateStreak, user } = useStore();
+  const { addScan, addKrux, updateStreak, user } = useStore();
   
   // Cleanup camera on unmount
   useEffect(() => {
@@ -143,7 +144,7 @@ export function Scanner() {
     setCurrentBinId(mockBinId);
 
     try {
-      const response = await initiateHandshake(user.uid, mockBinId);
+      const response = await initiateHandshake(user.id, mockBinId);
       setCurrentSessionId(response.session_id);
       
       // Proceed to Step 2: Scan Plastic
@@ -168,17 +169,18 @@ export function Scanner() {
     if (!ctx) return;
     
     ctx.drawImage(video, 0, 0);
-    const imageData = canvas.toDataURL('image/jpeg', 0.9);
+    const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height); // Get real ImageData
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9); // Keep string for UI preview
     
-    setCapturedImage(imageData);
+    setCapturedImage(dataUrl);
     setScanState('captured');
     stopCamera();
     
-    // Start processing
-    processImage(imageData);
+    // Start processing with the RAW ImageData object and the dataUrl for metadata
+    processImage(imageDataObj, dataUrl);
   }, [currentSessionId]);
   
-  const processImage = async (imageData: string) => {
+  const processImage = async (imageDataObj: ImageData, dataUrl: string) => {
     if (!currentSessionId) {
       setError('No active bin session. Start over.');
       setScanState('idle');
@@ -207,7 +209,7 @@ export function Scanner() {
     
     try {
       // 1. Run local ML classification
-      const classification = await plasticClassifier.classify(imageData);
+      const classification = await plasticClassifier.classify(imageDataObj);
       const plasticType = classification.type as PlasticType;
       const confidence = classification.confidence;
       const allScoresRes = classification.allScores;
@@ -230,18 +232,26 @@ export function Scanner() {
       setScanState('waiting_for_drop');
 
       // 4. Start RTDB listener for the hardware event
-      const unsubscribe = listenForDropConfirmation(currentBinId || 'unknown_bin', (event) => {
+      const unsubscribe = listenForDropConfirmation(currentBinId || 'unknown_bin', async (event) => {
         if (event.status === 'confirmed') {
           // Hardware Drop Successful!
+          const coins = event.krux_earned || PLASTIC_INFO[plasticType].coins;
           setScanResult({
             type: plasticType,
             confidence: confidence,
-            coins: event.krux_earned || PLASTIC_INFO[plasticType].coins
+            coins: coins
           });
           setAllScores(allScoresRes);
           
-          addKrux(event.krux_earned || PLASTIC_INFO[plasticType].coins);
-          updateStreak();
+          // Generate Metadata if we have the canvas
+          if (canvasRef.current && dataUrl) {
+            const metadata = await generateScanMetadata(canvasRef.current, dataUrl);
+            await addScan(plasticType, metadata, coins);
+          } else {
+            addKrux(coins);
+            updateStreak();
+          }
+          
           setScanState('result');
           unsubscribe();
         } else if (event.status === 'failed') {

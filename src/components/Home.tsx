@@ -75,12 +75,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {spinModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-gray-900/60" onClick={() => setSpinModalOpen(false)} />
-          <div className="relative w-full bg-white rounded-t-3xl p-6 pb-10 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full bg-white dark:bg-slate-900 rounded-t-3xl p-6 pb-10 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-gray-900 font-bold text-xl">🎡 Daily Spin</h2>
+              <h2 className="text-gray-900 dark:text-white font-bold text-xl">🎡 Daily Spin</h2>
               <button
                 onClick={() => setSpinModalOpen(false)}
-                className="p-2 bg-gray-100 rounded-xl text-gray-500 font-bold"
+                className="p-2 bg-gray-100 dark:bg-slate-800 rounded-xl text-gray-500 font-bold"
               >
                 ✕
               </button>
@@ -93,11 +93,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* Level-up celebration overlay */}
       {levelUpTo !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="level-up bg-white border border-green-200 rounded-3xl p-8 text-center mx-6 shadow-xl">
+          <div className="level-up bg-white dark:bg-slate-800 border border-green-200 dark:border-green-800 rounded-3xl p-8 text-center mx-6 shadow-xl">
             <div className="text-6xl mb-3">⬆️</div>
-            <p className="text-green-600 font-bold text-2xl">Level Up!</p>
-            <p className="text-gray-900 font-bold text-xl">Level {levelUpTo}</p>
-            <p className="text-gray-500">{LEVEL_NAMES[(levelUpTo ?? 1) - 1]}</p>
+            <p className="text-green-600 dark:text-green-400 font-bold text-2xl">Level Up!</p>
+            <p className="text-gray-900 dark:text-white font-bold text-xl">Level {levelUpTo}</p>
+            <p className="text-gray-500 dark:text-gray-400">{LEVEL_NAMES[(levelUpTo ?? 1) - 1]}</p>
             <button
               onClick={dismissLevelUp}
               className="mt-4 px-6 py-2 bg-green-500 text-white font-bold rounded-xl pointer-events-auto"

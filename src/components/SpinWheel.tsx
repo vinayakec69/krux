@@ -351,11 +351,11 @@ export const SpinWheel: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-gray-900 font-bold">🎡 Daily Spin</h3>
+        <h3 className="text-gray-900 dark:text-white font-bold">🎡 Daily Spin</h3>
         {alreadySpun && (
-          <div className="flex items-center gap-1 text-gray-400 text-xs">
+          <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500 text-xs">
             <span>⏳</span>
             <span>Next spin in {timeLeft}</span>
           </div>
@@ -406,7 +406,7 @@ export const SpinWheel: React.FC = () => {
           disabled={spinning || alreadySpun}
           className={`w-full py-3 rounded-xl font-bold transition-all duration-300 ${
             spinning || alreadySpun
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
               : 'bg-green-500 hover:bg-green-600 text-white pop-out-btn'
           }`}
         >
