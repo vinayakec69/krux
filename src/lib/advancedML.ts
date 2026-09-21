@@ -22,8 +22,9 @@ export class PlasticClassifier {
         ort.env.wasm.numThreads = 1; // Prevent WebAssembly threading issues
         ort.env.wasm.simd = false; // Disable SIMD to prevent SharedArrayBuffer/JSEP MJS module issues on Android
         
+        // Use WebGL for massive GPU acceleration on mobile, fallback to WASM
         this.session = await ort.InferenceSession.create('/model/best.onnx', {
-          executionProviders: ['wasm']
+          executionProviders: ['webgl', 'wasm']
         });
         console.log('Custom YOLOv8 ONNX model loaded successfully');
         resolve();
