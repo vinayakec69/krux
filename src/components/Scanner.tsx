@@ -20,12 +20,12 @@ const PLASTIC_INFO: Record<PlasticType, { name: string; examples: string; color:
 type ScanState = 
   | 'idle' 
   | 'requesting' 
-  | 'streaming_bin' // Phase 1: Scan Bin QR
-  | 'handshake'     // Connecting to Bin
+  | 'scanning_qr'      // Phase 1: Auto-scanning for QR code
+  | 'handshake'         // Connecting to Bin
   | 'streaming_plastic' // Phase 2: Scan Plastic Item
   | 'captured' 
   | 'processing' 
-  | 'waiting_for_drop' // Escrow Phase: Waiting for hardware confirmation
+  | 'waiting_for_drop'  // Escrow Phase
   | 'result' 
   | 'fraud';
 
@@ -44,7 +44,9 @@ interface FraudResult {
 export const Scanner = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const qrScanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -57,14 +59,16 @@ export const Scanner = () => {
   // IoT Escrow State
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentBinId, setCurrentBinId] = useState<string | null>(null);
-  const [dropTimeout, setDropTimeout] = useState<number>(30); // 30 second countdown for user to drop
+  const [dropTimeout, setDropTimeout] = useState<number>(30);
+  const [qrDetected, setQrDetected] = useState<string | null>(null);
 
   const { addScan, addKrux, updateStreak, user } = useStore();
   
-  // Cleanup camera on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopCamera();
+      stopQrScanning();
     };
   }, []);
 
@@ -87,7 +91,154 @@ export const Scanner = () => {
     }
   };
 
-  const startCamera = useCallback(async (mode: 'bin' | 'plastic') => {
+  const stopQrScanning = () => {
+    if (qrScanIntervalRef.current) {
+      clearInterval(qrScanIntervalRef.current);
+      qrScanIntervalRef.current = null;
+    }
+  };
+
+  // ─── Start camera and begin auto-scanning for QR codes ───
+  const startQrScan = useCallback(async () => {
+    if (!user) {
+      setError('Please login first to scan bins.');
+      return;
+    }
+
+    setScanState('requesting');
+    setError(null);
+    setQrDetected(null);
+    
+    try {
+      stopCamera();
+      stopQrScanning();
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+      
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        
+        await new Promise<void>((resolve, reject) => {
+          if (!videoRef.current) { reject(new Error('Video element not found')); return; }
+          const video = videoRef.current;
+          video.onloadedmetadata = () => { video.play().then(() => resolve()).catch(reject); };
+          video.onerror = () => reject(new Error('Video error'));
+          setTimeout(() => reject(new Error('Camera timeout')), 10000);
+        });
+        
+        setScanState('scanning_qr');
+        
+        // Start continuous QR scanning using BarcodeDetector API or jsQR fallback
+        startAutoQrDetection();
+      }
+    } catch (err) {
+      console.error('Camera error:', err);
+      setError('Failed to access camera. Please allow permissions.');
+      setScanState('idle');
+    }
+  }, [user]);
+
+  // ─── Continuous QR detection ───
+  const startAutoQrDetection = () => {
+    stopQrScanning();
+
+    // Try native BarcodeDetector first (Chrome Android supports it)
+    const hasNativeDetector = 'BarcodeDetector' in window;
+    let detector: any = null;
+
+    if (hasNativeDetector) {
+      try {
+        detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+      } catch (e) {
+        console.warn('BarcodeDetector init failed, using fallback');
+      }
+    }
+
+    qrScanIntervalRef.current = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
+
+      const video = videoRef.current;
+
+      // ── Method 1: Native BarcodeDetector (fast, runs on GPU) ──
+      if (detector) {
+        try {
+          const barcodes = await detector.detect(video);
+          if (barcodes.length > 0) {
+            const qrValue = barcodes[0].rawValue;
+            if (qrValue && qrValue.includes('KRUX_BIN_')) {
+              handleQrDetected(qrValue);
+              return;
+            }
+          }
+        } catch (e) { /* ignore frame errors */ }
+      }
+
+      // ── Method 2: Canvas-based fallback using jsQR ──
+      if (!detector) {
+        try {
+          const { default: jsQR } = await import('jsqr');
+          const canvas = qrCanvasRef.current;
+          if (!canvas) return;
+          
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          
+          ctx.drawImage(video, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          
+          if (code && code.data.includes('KRUX_BIN_')) {
+            handleQrDetected(code.data);
+            return;
+          }
+        } catch (e) { /* jsQR not available, use mock fallback below */ }
+      }
+    }, 300); // Scan every 300ms
+  };
+
+  // ─── QR detected → Start handshake ───
+  const handleQrDetected = async (qrValue: string) => {
+    stopQrScanning();
+
+    // Extract bin ID from QR value (e.g., "KRUX_BIN_001" or a URL containing it)
+    let binId = qrValue;
+    if (qrValue.includes('KRUX_BIN_')) {
+      const match = qrValue.match(/KRUX_BIN_\d+/);
+      if (match) binId = match[0];
+    }
+
+    setQrDetected(binId);
+    setScanState('handshake');
+    setCurrentBinId(binId);
+
+    try {
+      const response = await initiateHandshake(user!.id, binId);
+      setCurrentSessionId(response.session_id);
+      
+      // SUCCESS: Bin responded! Proceed to plastic scanning
+      startCamera('plastic');
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect to bin. Is it online?');
+      setScanState('idle');
+    }
+  };
+
+  // ─── Mock QR (fallback for testing without a real QR code) ───
+  const mockScanQR = async () => {
+    handleQrDetected('KRUX_BIN_001');
+  };
+
+  const startCamera = useCallback(async (mode: 'plastic') => {
     setScanState('requesting');
     setError(null);
     
@@ -107,22 +258,15 @@ export const Scanner = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         
-        // Wait for video to be ready
         await new Promise<void>((resolve, reject) => {
-          if (!videoRef.current) {
-            reject(new Error('Video element not found'));
-            return;
-          }
-          
+          if (!videoRef.current) { reject(new Error('Video element not found')); return; }
           const video = videoRef.current;
-          video.onloadedmetadata = () => {
-            video.play().then(() => resolve()).catch(reject);
-          };
+          video.onloadedmetadata = () => { video.play().then(() => resolve()).catch(reject); };
           video.onerror = () => reject(new Error('Video error'));
           setTimeout(() => reject(new Error('Camera timeout')), 10000);
         });
         
-        setScanState(mode === 'bin' ? 'streaming_bin' : 'streaming_plastic');
+        setScanState('streaming_plastic');
       }
     } catch (err) {
       console.error('Camera error:', err);
@@ -131,30 +275,6 @@ export const Scanner = () => {
     }
   }, []);
   
-  // STEP 1: Scan Bin QR -> Initiate Handshake
-  const captureBinQR = async () => {
-    if (!user) {
-      setError('Please login first to scan bins.');
-      return;
-    }
-
-    setScanState('handshake');
-    // In a real app, this would decode a QR code. We mock it for TRL-4:
-    const mockBinId = 'KRUX_BIN_001'; 
-    setCurrentBinId(mockBinId);
-
-    try {
-      const response = await initiateHandshake(user.id, mockBinId);
-      setCurrentSessionId(response.session_id);
-      
-      // Proceed to Step 2: Scan Plastic
-      startCamera('plastic');
-    } catch (err: any) {
-      setError(err.message || 'Failed to connect to bin. Is it online?');
-      setScanState('idle');
-    }
-  };
-
   // STEP 2: Capture Plastic Image
   const capturePlastic = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -169,14 +289,13 @@ export const Scanner = () => {
     if (!ctx) return;
     
     ctx.drawImage(video, 0, 0);
-    const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height); // Get real ImageData
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9); // Keep string for UI preview
+    const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     
     setCapturedImage(dataUrl);
     setScanState('captured');
     stopCamera();
     
-    // Start processing with the RAW ImageData object and the dataUrl for metadata
     processImage(imageDataObj, dataUrl);
   }, [currentSessionId]);
   
@@ -190,7 +309,6 @@ export const Scanner = () => {
     setScanState('processing');
     setProgress(0);
     
-    // Non-linear progress simulation
     const progressSteps = [
       { target: 20, delay: 100 },
       { target: 45, delay: 150 },
@@ -208,7 +326,6 @@ export const Scanner = () => {
     }, 200);
     
     try {
-      // 1. Run local ML classification
       const classification = await plasticClassifier.classify(imageDataObj);
       const plasticType = classification.type as PlasticType;
       const confidence = classification.confidence;
@@ -217,8 +334,6 @@ export const Scanner = () => {
       clearInterval(progressInterval);
       setProgress(100);
       
-      // 2. Call Cloud Function to validate scan and run fraud checks
-      // In production, we'd pass perceptual hash here. 
       await validateScan({
         session_id: currentSessionId,
         predicted_class: plasticType,
@@ -227,14 +342,11 @@ export const Scanner = () => {
         perceptual_hash: 'mock_phash_123'
       });
 
-      // 3. Scan is valid! Now we wait for the physical bin drop
       setDropTimeout(30);
       setScanState('waiting_for_drop');
 
-      // 4. Start RTDB listener for the hardware event
       const unsubscribe = listenForDropConfirmation(currentBinId || 'unknown_bin', async (event) => {
         if (event.status === 'confirmed') {
-          // Hardware Drop Successful!
           const coins = event.krux_earned || PLASTIC_INFO[plasticType].coins;
           setScanResult({
             type: plasticType,
@@ -243,7 +355,6 @@ export const Scanner = () => {
           });
           setAllScores(allScoresRes);
           
-          // Generate Metadata if we have the canvas
           if (canvasRef.current && dataUrl) {
             const metadata = await generateScanMetadata(canvasRef.current, dataUrl);
             await addScan(plasticType, metadata, coins);
@@ -255,7 +366,6 @@ export const Scanner = () => {
           setScanState('result');
           unsubscribe();
         } else if (event.status === 'failed') {
-          // Fraud or Mismatch detected by hardware
           setError(`Hardware rejected drop: ${event.reason}`);
           setScanState('idle');
           unsubscribe();
@@ -281,6 +391,7 @@ export const Scanner = () => {
   
   const resetScanner = () => {
     stopCamera();
+    stopQrScanning();
     setCapturedImage(null);
     setScanResult(null);
     setFraudResult(null);
@@ -289,6 +400,7 @@ export const Scanner = () => {
     setAllScores({});
     setCurrentSessionId(null);
     setCurrentBinId(null);
+    setQrDetected(null);
     setScanState('idle');
   };
   
@@ -308,6 +420,7 @@ export const Scanner = () => {
       </div>
       
       <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={qrCanvasRef} className="hidden" />
       
       <div className="p-4">
         <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden mb-4 border border-gray-200">
@@ -318,10 +431,10 @@ export const Scanner = () => {
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 w-full h-full object-cover ${(scanState === 'streaming_bin' || scanState === 'streaming_plastic') ? 'block' : 'hidden'}`}
+            className={`absolute inset-0 w-full h-full object-cover ${(scanState === 'scanning_qr' || scanState === 'streaming_plastic') ? 'block' : 'hidden'}`}
           />
           
-          {capturedImage && scanState !== 'streaming_bin' && scanState !== 'streaming_plastic' && scanState !== 'idle' && scanState !== 'requesting' && (
+          {capturedImage && scanState !== 'scanning_qr' && scanState !== 'streaming_plastic' && scanState !== 'idle' && scanState !== 'requesting' && (
             <img src={capturedImage} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />
           )}
           
@@ -329,7 +442,7 @@ export const Scanner = () => {
           {scanState === 'idle' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
               <div
-                onClick={() => startCamera('bin')}
+                onClick={startQrScan}
                 className="w-24 h-24 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:bg-green-600 transition-all hover:scale-105 shadow-md shadow-green-200"
               >
                 <QrCode className="w-10 h-10 text-white" />
@@ -346,27 +459,43 @@ export const Scanner = () => {
               <p className="mt-4 text-gray-600 font-medium">
                 {scanState === 'requesting' ? 'Accessing Camera...' : 'Connecting securely to Bin...'}
               </p>
+              {scanState === 'handshake' && qrDetected && (
+                <p className="mt-2 text-green-600 text-sm font-bold">QR Detected: {qrDetected}</p>
+              )}
             </div>
           )}
           
-          {/* 2. STREAMING BIN (MOCK QR SCANNER) */}
-          {scanState === 'streaming_bin' && (
+          {/* 2. AUTO-SCANNING FOR QR CODE */}
+          {scanState === 'scanning_qr' && (
             <>
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-12 border-2 border-green-500/70 rounded-3xl" />
-                <div className="absolute left-12 right-12 h-0.5 bg-green-500 animate-pulse" style={{ top: '50%', animation: 'scan 2s ease-in-out infinite' }} />
+                {/* QR scanning overlay — corner brackets */}
+                <div className="absolute inset-16">
+                  {/* Top-left */}
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-3 border-l-3 border-green-500 rounded-tl-lg" />
+                  {/* Top-right */}
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-3 border-r-3 border-green-500 rounded-tr-lg" />
+                  {/* Bottom-left */}
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-3 border-l-3 border-green-500 rounded-bl-lg" />
+                  {/* Bottom-right */}
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-3 border-r-3 border-green-500 rounded-br-lg" />
+                </div>
+                {/* Scanning line animation */}
+                <div className="absolute left-16 right-16 h-0.5 bg-green-500 opacity-80" style={{ top: '50%', animation: 'qrScan 2s ease-in-out infinite' }} />
+              </div>
+              <div className="absolute top-6 left-0 right-0 text-center">
+                <p className="text-white text-sm bg-black/60 inline-block px-4 py-2 rounded-full backdrop-blur-sm">
+                  📷 Auto-scanning for QR Code...
+                </p>
               </div>
               <div className="absolute bottom-6 left-0 right-0 flex justify-center">
                 <button
-                  onClick={captureBinQR}
-                  className="flex items-center gap-2 px-8 py-4 bg-green-500 text-white font-bold rounded-full shadow-md"
+                  onClick={mockScanQR}
+                  className="flex items-center gap-2 px-6 py-3 bg-white/20 text-white text-sm font-bold rounded-full backdrop-blur-sm border border-white/30"
                 >
-                  <QrCode className="w-5 h-5" />
-                  MOCK SCAN QR
+                  <QrCode className="w-4 h-4" />
+                  MOCK SCAN (Testing)
                 </button>
-              </div>
-              <div className="absolute top-6 left-0 right-0 text-center">
-                <p className="text-white text-sm bg-black/60 inline-block px-4 py-2 rounded-full backdrop-blur-sm">Point at Bin QR Code</p>
               </div>
             </>
           )}
@@ -387,12 +516,12 @@ export const Scanner = () => {
                 </button>
               </div>
               <div className="absolute top-6 left-0 right-0 text-center">
-                <p className="text-white text-sm bg-green-500/80 inline-block px-4 py-2 rounded-full">Scan your plastic item</p>
+                <p className="text-white text-sm bg-green-500/80 inline-block px-4 py-2 rounded-full">✅ Bin Connected! Scan your plastic item</p>
               </div>
             </>
           )}
           
-          {/* 4. PROCESSING (ML & FRAUD CLOUD FUNCTION) */}
+          {/* 4. PROCESSING */}
           {scanState === 'processing' && (
             <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-6">
               <div className="w-full max-w-xs text-center">
@@ -405,7 +534,7 @@ export const Scanner = () => {
             </div>
           )}
 
-          {/* 5. WAITING FOR PHYSICAL DROP (IoT ESCROW) */}
+          {/* 5. WAITING FOR PHYSICAL DROP */}
           {scanState === 'waiting_for_drop' && (
             <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
               <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6 animate-pulse">
@@ -491,7 +620,7 @@ export const Scanner = () => {
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
-                  <p className="text-sm text-gray-600"><strong className="text-gray-900">Handshake:</strong> Scan the QR code on the bin to connect securely.</p>
+                  <p className="text-sm text-gray-600"><strong className="text-gray-900">Handshake:</strong> Point your camera at the QR code — it auto-detects and connects.</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
@@ -508,15 +637,19 @@ export const Scanner = () => {
       </div>
       
       <style>{`
-        @keyframes scan {
-          0%, 100% { transform: translateY(-80px); opacity: 0.3; }
-          50% { transform: translateY(80px); opacity: 1; }
+        @keyframes qrScan {
+          0%, 100% { transform: translateY(-60px); opacity: 0.3; }
+          50% { transform: translateY(60px); opacity: 1; }
         }
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+        .border-t-3 { border-top-width: 3px; }
+        .border-b-3 { border-bottom-width: 3px; }
+        .border-l-3 { border-left-width: 3px; }
+        .border-r-3 { border-right-width: 3px; }
       `}</style>
     </div>
   );

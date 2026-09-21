@@ -25,3 +25,9 @@ ml/venv/
 PROJECT_DETAILS.md
 
 KRUX_Report.tex
+
+# JDK (downloaded for local builds, too large for GitHub)
+jdk.zip
+jdk21.zip
+jdk_extracted/
+jdk21_extracted/
