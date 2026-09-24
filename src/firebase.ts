@@ -13,7 +13,22 @@ const firebaseConfig = {
   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 };
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);        // Firestore (main database)
-export const rtdb = getDatabase(app);       // Realtime Database (IoT events)
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, v]) => !v || v === 'undefined')
+  .map(([k]) => k);
+
+let app: any = null;
+let auth: any = null;
+let db: any = null;
+let rtdb: any = null;
+
+if (missingKeys.length > 0) {
+  console.error('[Firebase] Missing config:', missingKeys);
+} else {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  rtdb = getDatabase(app);
+}
+
+export { app, auth, db, rtdb };

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect, Component } from 'react';
 import { useStore } from '@/store/useStore';
 import { Auth } from '@/components/Auth';
 import { Home } from '@/components/Home';
@@ -13,7 +13,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<
+class ErrorBoundary extends Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
   ErrorBoundaryState
 > {
