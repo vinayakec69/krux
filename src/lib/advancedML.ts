@@ -18,18 +18,17 @@ export class PlasticClassifier {
     this.isInitializing = true;
     this.initPromise = new Promise(async (resolve, reject) => {
       try {
-        // Load the ONNX model from the public directory
-        ort.env.wasm.numThreads = 1; // Prevent WebAssembly threading issues
-        ort.env.wasm.simd = false; // Disable SIMD to prevent SharedArrayBuffer/JSEP MJS module issues on Android
+        ort.env.wasm.numThreads = 1;
+        ort.env.wasm.simd = false;
         
-        // Use WebGL for massive GPU acceleration on mobile, fallback to WASM
         this.session = await ort.InferenceSession.create('/model/best.onnx', {
-          executionProviders: ['webgl', 'wasm']
+          executionProviders: ['wasm']
         });
-        console.log('Custom YOLOv8 ONNX model loaded successfully');
+        console.log('Custom YOLOv8 ONNX model loaded successfully (WASM)');
         resolve();
       } catch (error) {
         console.error('Failed to load ONNX model:', error);
+        this.session = null;
         reject(error);
       } finally {
         this.isInitializing = false;
@@ -40,41 +39,40 @@ export class PlasticClassifier {
   }
 
   async classify(imageData: ImageData): Promise<{ type: string; confidence: number; allScores: Record<string, number> }> {
-    await this.init();
+    try {
+      await this.init();
+    } catch (initError) {
+      console.error('Model initialization failed, using fallback:', initError);
+      return this.fallbackClassification(imageData);
+    }
     
     if (!this.session) {
-      throw new Error('Model failed to initialize');
+      return this.fallbackClassification(imageData);
     }
 
     try {
-      // YOLOv8n-cls expects (1, 3, 320, 320)
       const tensor = this.preprocess(imageData);
       
       const feeds: Record<string, ort.Tensor> = {};
       feeds[this.session.inputNames[0]] = tensor;
       
-      // Run inference
       const results = await this.session.run(feeds);
       
-      // Get the output tensor
       const output = results[this.session.outputNames[0]];
       const rawScores = output.data as Float32Array;
       
-      // Apply softmax if the model outputs logits (YOLO classification usually outputs raw probs or logits)
       const probabilities = this.softmax(Array.from(rawScores));
 
-      // Map the 9 specific classes back to our general plastic types
       const scores: Record<string, number> = {
-        PET: probabilities[5] + probabilities[6],     // PET_A + PET_B
-        HDPE: probabilities[0] + probabilities[1],    // HDPE_A + HDPE_B
-        LDPE: probabilities[2] + probabilities[3],    // LDPE_A + LDPE_B
-        PP: probabilities[7] + probabilities[8],      // PP_A + PP_B
-        OTHER: probabilities[4],                      // MISC_A
+        PET: probabilities[5] + probabilities[6],
+        HDPE: probabilities[0] + probabilities[1],
+        LDPE: probabilities[2] + probabilities[3],
+        PP: probabilities[7] + probabilities[8],
+        OTHER: probabilities[4],
         PVC: 0.0,
         PS: 0.0
       };
 
-      // Find the highest scoring plastic type
       let bestType = 'UNKNOWN';
       let highestScore = 0;
       
@@ -99,9 +97,20 @@ export class PlasticClassifier {
         allScores: scores
       };
     } catch (error) {
-      console.error('Classification error:', error);
-      throw error;
+      console.error('Classification error, using fallback:', error);
+      return this.fallbackClassification(imageData);
     }
+  }
+
+  private fallbackClassification(imageData: ImageData): { type: string; confidence: number; allScores: Record<string, number> } {
+    const scores: Record<string, number> = {
+      PET: 0, HDPE: 0, PVC: 0, LDPE: 0, PP: 0, PS: 0, OTHER: 0
+    };
+    return {
+      type: 'UNKNOWN',
+      confidence: 0,
+      allScores: scores
+    };
   }
 
   private preprocess(imageData: ImageData): ort.Tensor {

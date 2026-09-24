@@ -80,19 +80,17 @@ export function listenProfile(uid: string, callback: (data: any) => void) {
 
 export function initiateHandshake(user_id: string, bin_id: string) {
   const sessionId = `session_${Date.now()}`;
-  const binRef = ref(rtdb, `active_sessions/${bin_id}`);
+  const binRef = ref(rtdb, `bins/${bin_id}`);
 
   console.log(`[Handshake] Initiating handshake for bin: ${bin_id} with user: ${user_id}`);
 
   return new Promise<any>((resolve, reject) => {
-    // 1. Start a strict timeout
     const timeout = setTimeout(() => {
       console.error("[Handshake] Timeout! 15 seconds elapsed without connection.");
       off(binRef);
       reject(new Error("Bin didn't respond. Is it turned on and connected to Wi-Fi?"));
     }, 15000);
 
-    // 2. Set up listener FIRST, so we don't miss the immediate reply
     onValue(binRef, (snapshot) => {
       const data = snapshot.val();
       console.log("[Handshake] Received update from DB:", data);
@@ -103,13 +101,10 @@ export function initiateHandshake(user_id: string, bin_id: string) {
         off(binRef);
         resolve({ valid: true, session_id: sessionId });
       } else if (data && data.status === 'connected') {
-          // If it was already connected from a previous session, we ignore it and wait 
-          // for it to process our new 'requesting_connection'
-          console.log("[Handshake] Ignoring old 'connected' state, waiting for new handshake.");
+        console.log("[Handshake] Ignoring old 'connected' state, waiting for new handshake.");
       }
     });
 
-    // 3. Write our request to the database
     console.log("[Handshake] Writing 'requesting_connection' to DB...");
     set(binRef, {
       status: 'requesting_connection',
@@ -152,11 +147,11 @@ export async function validateScan(payload: {
 // ─────────────────────────────────────────────
 
 export function listenForDropConfirmation(
-  session_id: string,
+  bin_id: string,
   onConfirmed: (data: any) => void,
   timeoutMs = 120000
 ) {
-  const rtdbRef = ref(rtdb, `drop_events/${session_id}`);
+  const rtdbRef = ref(rtdb, `drop_events/${bin_id}`);
   let timeoutId: ReturnType<typeof setTimeout>;
 
   const unsubscribe = onValue(rtdbRef, (snap) => {
@@ -167,7 +162,6 @@ export function listenForDropConfirmation(
     }
   });
 
-  // Auto-cleanup after timeout
   timeoutId = setTimeout(() => {
     off(rtdbRef);
   }, timeoutMs);

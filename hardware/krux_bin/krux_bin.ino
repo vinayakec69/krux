@@ -14,7 +14,7 @@
 #define WIFI_SSID       "krish"
 #define WIFI_PASSWORD   "okkrishfine"
 #define API_KEY         "AIzaSyDUs4meTrtJKgNLy-YvRiufFX5NjymB-SM"
-#define DATABASE_URL    "https://krux-ee1df-default-rtdb.firebaseio.com"
+#define DATABASE_URL    "krux-ee1df-default-rtdb.firebaseio.com"
 #define BIN_ID          "KRUX_BIN_001"
 
 // ============================================================
